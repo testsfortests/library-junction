@@ -12,7 +12,7 @@ const PaymentSchema = new mongoose.Schema(
 const DocumentSchema = new mongoose.Schema(
   {
     key: { type: String, required: true }, // R2 object key, needed to delete later
-    url: { type: String, required: true },
+    url: { type: String }, // not stored — generated on read via getSignedFileUrl
   },
   { _id: false }
 );
