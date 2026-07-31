@@ -8,7 +8,14 @@ const INK = "#1C2541";
 const BRASS = "#A9791F";
 
 const today = new Date().toISOString().split("T")[0];
-const feePresets = [500, 1000];
+
+const feePresets = [
+  { label: "Free", value: 0 },
+  { label: "₹500", value: 500 },
+  { label: "₹1000", value: 1000 },
+  { label: "₹1500", value: 1500 },
+  { label: "₹2000", value: 2000 },
+];
 
 function formatDisplayDate(dateStr) {
   const d = new Date(dateStr);
@@ -24,7 +31,7 @@ export default function AddStudentPage() {
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
   const [photo, setPhoto] = useState(null);
-  const [monthlyFee, setMonthlyFee] = useState("1000"); // stored as string now
+  const [monthlyFee, setMonthlyFee] = useState("1000");
   const [admissionDate, setAdmissionDate] = useState(today);
   const [status, setStatus] = useState("active");
   const [documents, setDocuments] = useState([]);
@@ -46,7 +53,7 @@ export default function AddStudentPage() {
   const feeValue = monthlyFee === "" ? 0 : Number(monthlyFee);
 
   const handleFeeChange = (e) => {
-    // strip leading zeros (e.g. "0200" -> "200") and allow empty while typing
+    // strip non-digits and leading zeros (e.g. "0200" -> "200"), allow empty while typing
     const cleaned = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
     setMonthlyFee(cleaned);
   };
@@ -77,20 +84,16 @@ export default function AddStudentPage() {
       setError("Enter a valid 10-digit mobile number.");
       return;
     }
-    if (feeValue <= 0) {
-      setError("Enter a valid monthly fee.");
-      return;
-    }
-    if (documents.length === 0) {
-      setError("Upload at least one identity proof image.");
+    if (monthlyFee === "" || feeValue < 0) {
+      setError("Enter a valid monthly fee (0 for free).");
       return;
     }
 
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append("fullName", fullName);
-      formData.append("mobile", mobile);
+      formData.append("fullName", fullName.trim());
+      formData.append("mobile", mobile.trim());
       formData.append("monthlyFee", feeValue);
       formData.append("admissionDate", admissionDate);
       formData.append("status", status);
@@ -150,6 +153,7 @@ export default function AddStudentPage() {
             <input
               type="tel"
               maxLength={10}
+              inputMode="numeric"
               value={mobile}
               onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
               placeholder="Enter 10-digit mobile number"
@@ -157,7 +161,7 @@ export default function AddStudentPage() {
             />
           </div>
 
-          <label className="mb-1 block text-xs font-medium text-gray-500">Photo</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Photo (optional)</label>
           <div className="flex items-center gap-3">
             {photo ? (
               <img
@@ -192,11 +196,17 @@ export default function AddStudentPage() {
               <Camera size={14} />
               Scan / Camera
             </button>
-            <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/jpg"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
             <input
               ref={photoCameraRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/jpg"
               capture="user"
               onChange={handlePhotoChange}
               className="hidden"
@@ -226,20 +236,20 @@ export default function AddStudentPage() {
           </div>
 
           {/* Quick-select fee presets */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {feePresets.map((preset) => (
               <button
-                key={preset}
+                key={preset.label}
                 type="button"
-                onClick={() => setMonthlyFee(String(preset))}
+                onClick={() => setMonthlyFee(String(preset.value))}
                 className="rounded-full px-3 py-1.5 text-xs font-medium transition"
                 style={{
-                  background: feeValue === preset ? INK : "#FFFFFF",
-                  color: feeValue === preset ? "#FFFFFF" : "#6B7280",
-                  border: `1px solid ${feeValue === preset ? INK : "#E5E1D8"}`,
+                  background: feeValue === preset.value ? INK : "#FFFFFF",
+                  color: feeValue === preset.value ? "#FFFFFF" : "#6B7280",
+                  border: `1px solid ${feeValue === preset.value ? INK : "#E5E1D8"}`,
                 }}
               >
-                ₹{preset}
+                {preset.label}
               </button>
             ))}
           </div>
@@ -279,7 +289,7 @@ export default function AddStudentPage() {
           <h2 className="mb-1 text-sm font-semibold" style={{ color: INK }}>
             Documents
           </h2>
-          <label className="mb-3 block text-xs font-medium text-gray-500">Identity Proof*</label>
+          <label className="mb-3 block text-xs font-medium text-gray-500">Identity Proof (optional)</label>
           <p className="mb-3 text-xs text-gray-400">
             Upload identity proof images (Aadhaar, PAN, etc.) — JPG or PNG only
           </p>
@@ -366,7 +376,7 @@ export default function AddStudentPage() {
           <div>
             <p className="text-xs text-gray-400">Fee</p>
             <p className="font-semibold" style={{ color: INK }}>
-              ₹{feeValue.toLocaleString("en-IN")}/mo
+              {feeValue === 0 ? "Free" : `₹${feeValue.toLocaleString("en-IN")}/mo`}
             </p>
           </div>
           <div>

@@ -1,15 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Menu, Bell, BookOpen, X, Pencil, LogOut, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
+function getInitials(name) {
+  return (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function Header() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [admin, setAdmin] = useState(null);
   const router = useRouter();
   const { mode, colors, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    async function fetchAdmin() {
+      try {
+        const res = await fetch("/api/admin/me");
+        const data = await res.json();
+        if (res.ok) setAdmin(data.admin);
+      } catch {
+        // fail silently — fallback name below covers this
+      }
+    }
+    fetchAdmin();
+  }, []);
+
+  const displayName = admin?.fullName || "Admin";
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
@@ -68,14 +93,14 @@ export default function Header() {
         <div className="flex items-start justify-between border-b p-5" style={{ borderColor: colors.border }}>
           <div className="flex items-center gap-3">
             <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl"
-              style={{ background: colors.surfaceAlt, border: `2px solid ${colors.primary}` }}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold"
+              style={{ background: colors.primary, color: "#FFFFFF", border: `2px solid ${colors.primary}` }}
             >
-              🧑‍💼
+              {getInitials(displayName)}
             </div>
             <div>
               <p className="text-sm font-semibold" style={{ color: colors.text }}>
-                Nikhil Chaudhary
+                {displayName}
               </p>
               <p className="text-xs" style={{ color: colors.textMuted }}>
                 Admin
@@ -104,26 +129,26 @@ export default function Header() {
           </Link>
 
           {/* Theme toggle */}
-        <div className="flex w-full items-center justify-between rounded-lg px-3 py-3">
-        <span className="flex items-center gap-3 text-sm font-medium" style={{ color: colors.text }}>
-            {mode === "dark" ? <Moon size={18} /> : <Sun size={18} />}
-            Dark Mode
-        </span>
+          <div className="flex w-full items-center justify-between rounded-lg px-3 py-3">
+            <span className="flex items-center gap-3 text-sm font-medium" style={{ color: colors.text }}>
+              {mode === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+              Dark Mode
+            </span>
 
-        <button
-            type="button"
-            onClick={toggleTheme}
-            aria-pressed={mode === "dark"}
-            aria-label="Toggle dark mode"
-            className="inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
-            style={{ background: mode === "dark" ? colors.primary : colors.border }}
-        >
-            <span
-            className="h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200"
-            style={{ transform: mode === "dark" ? "translateX(20px)" : "translateX(0px)" }}
-            />
-        </button>
-        </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-pressed={mode === "dark"}
+              aria-label="Toggle dark mode"
+              className="inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
+              style={{ background: mode === "dark" ? colors.primary : colors.border }}
+            >
+              <span
+                className="h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200"
+                style={{ transform: mode === "dark" ? "translateX(20px)" : "translateX(0px)" }}
+              />
+            </button>
+          </div>
 
           <button
             onClick={handleLogout}

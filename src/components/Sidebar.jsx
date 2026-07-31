@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Menu, LogOut, Pencil, ChevronDown } from "lucide-react";
@@ -8,15 +8,40 @@ import { Menu, LogOut, Pencil, ChevronDown } from "lucide-react";
 const INK = "#1C2541";
 const BRASS = "#A9791F";
 
+function getInitials(name) {
+  return (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [admin, setAdmin] = useState(null);
   const router = useRouter();
+
+  useEffect(() => {
+    async function fetchAdmin() {
+      try {
+        const res = await fetch("/api/admin/me");
+        const data = await res.json();
+        if (res.ok) setAdmin(data.admin);
+      } catch {
+        // fail silently — fallback UI below handles missing name
+      }
+    }
+    fetchAdmin();
+  }, []);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     router.replace("/login");
   };
+
+  const displayName = admin?.fullName || "Admin";
 
   return (
     <aside
@@ -45,17 +70,17 @@ export default function Sidebar() {
           onClick={() => setProfileOpen(!profileOpen)}
           className="flex w-full items-center gap-3 rounded-lg p-2 transition hover:bg-gray-50"
         >
-          <img
-            src="/profile-placeholder.png"
-            alt="Admin profile"
-            className="h-10 w-10 shrink-0 rounded-full object-cover"
-            style={{ border: `2px solid ${BRASS}` }}
-          />
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+            style={{ background: BRASS, border: `2px solid ${BRASS}` }}
+          >
+            {getInitials(displayName)}
+          </div>
           {!collapsed && (
             <>
               <div className="flex-1 text-left">
                 <p className="text-sm font-semibold" style={{ color: INK }}>
-                  Admin Name
+                  {displayName}
                 </p>
                 <p className="text-xs text-gray-400">Administrator</p>
               </div>

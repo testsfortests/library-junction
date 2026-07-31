@@ -17,7 +17,7 @@ const TEXT_MUTED = "#6B7280";
 
 export default function Login() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,8 +26,12 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
-    if (!username || !password) {
-      setError("Enter your username and password.");
+    if (!mobile.trim() || !password) {
+      setError("Enter your mobile number and password.");
+      return;
+    }
+    if (mobile.trim().length !== 10) {
+      setError("Enter a valid 10-digit mobile number.");
       return;
     }
 
@@ -36,12 +40,16 @@ export default function Login() {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ mobile: mobile.trim(), password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.needsVerification) {
+          router.push(`/verify-otp?mobile=${data.mobile}`);
+          return;
+        }
         throw new Error(data.message || "Login failed");
       }
 
@@ -62,7 +70,6 @@ export default function Login() {
         className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
         style={{ boxShadow: "0 20px 40px -12px rgba(28,37,65,0.18)" }}
       >
-        {/* brass ledger-spine bar */}
         <div style={{ height: 4, background: BRASS }} />
 
         <div className="px-8 pb-8 pt-7">
@@ -84,35 +91,37 @@ export default function Login() {
             )}
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Username
+              Mobile Number
             </label>
-            <input
-                type="text"
-                placeholder="test"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoCapitalize="off"
-                autoCorrect="off"
+            <div className="mb-4 flex overflow-hidden rounded-lg border" style={{ borderColor: BORDER }}>
+              <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: BG }}>
+                +91
+              </span>
+              <input
+                type="tel"
+                maxLength={10}
+                inputMode="numeric"
+                placeholder="Enter 10-digit mobile number"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
                 autoComplete="off"
-                className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
-                style={{ borderColor: BORDER }}
-                onFocus={(e) => (e.target.style.borderColor = BRASS)}
-                onBlur={(e) => (e.target.style.borderColor = BORDER)}
-                />
+                className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+              />
+            </div>
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
               Password
             </label>
             <input
-                type="password"
-                placeholder="test"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mb-6 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
-                style={{ borderColor: BORDER }}
-                onFocus={(e) => (e.target.style.borderColor = BRASS)}
-                onBlur={(e) => (e.target.style.borderColor = BORDER)}
-                />
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mb-6 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
+              style={{ borderColor: BORDER }}
+              onFocus={(e) => (e.target.style.borderColor = BRASS)}
+              onBlur={(e) => (e.target.style.borderColor = BORDER)}
+            />
 
             <button
               type="submit"
@@ -125,11 +134,6 @@ export default function Login() {
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
-
-          <p className="mt-6 text-center text-xs" style={{ color: TEXT_MUTED }}>
-            Test credentials: <span style={{ color: INK }}>test</span> /{" "}
-            <span style={{ color: INK }}>test</span>
-          </p>
 
           <p className="mt-4 text-center text-sm" style={{ color: TEXT_MUTED }}>
             Don't have an account?{" "}

@@ -20,6 +20,7 @@ export default function Signup() {
   const [fullName, setFullName] = useState("");
   const [libraryName, setLibraryName] = useState("");
   const [mobile, setMobile] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,12 +30,16 @@ export default function Signup() {
     e.preventDefault();
     setError("");
 
-    if (!fullName.trim() || !libraryName.trim() || !mobile.trim() || !password) {
+    if (!fullName.trim() || !libraryName.trim() || !mobile.trim() || !email.trim() || !password) {
       setError("Please fill in all required fields.");
       return;
     }
     if (mobile.trim().length !== 10) {
       setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError("Enter a valid email address.");
       return;
     }
     if (password.length < 6) {
@@ -51,7 +56,13 @@ export default function Signup() {
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, libraryName, mobile, password }),
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          libraryName: libraryName.trim(),
+          mobile: mobile.trim(),
+          email: email.trim(),
+          password,
+        }),
       });
 
       const data = await res.json();
@@ -60,7 +71,7 @@ export default function Signup() {
         throw new Error(data.message || "Signup failed");
       }
 
-      router.replace("/login");
+      router.push(`/verify-otp?mobile=${mobile.trim()}`);
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -101,11 +112,11 @@ export default function Signup() {
             )}
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Full Name*
+              Full Name
             </label>
             <input
               type="text"
-              placeholder="e.g. Nikhil Chaudhary"
+              placeholder="Enter your full name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
@@ -115,11 +126,11 @@ export default function Signup() {
             />
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Library Name*
+              Library Name
             </label>
             <input
               type="text"
-              placeholder="e.g. Library Junction"
+              placeholder="Enter your library name"
               value={libraryName}
               onChange={(e) => setLibraryName(e.target.value)}
               className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
@@ -129,7 +140,7 @@ export default function Signup() {
             />
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Mobile Number*
+              Mobile Number
             </label>
             <div className="mb-4 flex overflow-hidden rounded-lg border" style={{ borderColor: BORDER }}>
               <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: BG }}>
@@ -138,19 +149,36 @@ export default function Signup() {
               <input
                 type="tel"
                 maxLength={10}
-                placeholder="9876543210"
+                inputMode="numeric"
+                placeholder="Enter 10-digit mobile number"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
+                autoComplete="off"
                 className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
               />
             </div>
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Password*
+              Email
+            </label>
+            <input
+              type="email"
+              placeholder="Enter your email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
+              className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
+              style={{ borderColor: BORDER }}
+              onFocus={(e) => (e.target.style.borderColor = BRASS)}
+              onBlur={(e) => (e.target.style.borderColor = BORDER)}
+            />
+
+            <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
+              Password
             </label>
             <input
               type="password"
-              placeholder="Minimum 6 characters"
+              placeholder="Create a password (min. 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
@@ -160,11 +188,11 @@ export default function Signup() {
             />
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Confirm Password*
+              Confirm Password
             </label>
             <input
               type="password"
-              placeholder="Re-enter password"
+              placeholder="Re-enter your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="mb-6 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
