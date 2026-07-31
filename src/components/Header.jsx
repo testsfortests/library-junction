@@ -1,0 +1,139 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Menu, Bell, BookOpen, X, Pencil, LogOut, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+
+export default function Header() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const router = useRouter();
+  const { mode, colors, toggleTheme } = useTheme();
+
+  const handleLogout = async () => {
+    await fetch("/api/logout", { method: "POST" });
+    router.replace("/login");
+  };
+
+  return (
+    <>
+      <header
+        className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between border-b px-4 transition-colors duration-200"
+        style={{ background: colors.surface, borderColor: colors.border }}
+      >
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="rounded-lg p-2"
+          style={{ color: colors.text }}
+          aria-label="Open menu"
+        >
+          <Menu size={22} />
+        </button>
+
+        <div className="flex items-center gap-2">
+          <BookOpen size={20} color={colors.primary} />
+          <span
+            className="text-xs font-bold uppercase tracking-[0.15em] sm:text-sm"
+            style={{ color: colors.text }}
+          >
+            Library Junction
+          </span>
+        </div>
+
+        <button className="relative rounded-lg p-2" style={{ color: colors.text }} aria-label="Notifications">
+          <Bell size={20} />
+          <span
+            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
+            style={{ background: colors.primary }}
+          />
+        </button>
+      </header>
+
+      {/* Overlay */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setDrawerOpen(false)} />
+      )}
+
+      {/* Slide-out drawer — full width on mobile, fixed width on larger screens */}
+      <aside
+        className="fixed left-0 top-0 z-50 h-full w-full max-w-xs transform border-r transition-transform duration-200 sm:max-w-sm"
+        style={{
+          background: colors.surface,
+          borderColor: colors.border,
+          transform: drawerOpen ? "translateX(0)" : "translateX(-100%)",
+        }}
+      >
+        {/* Profile block with close icon top-right */}
+        <div className="flex items-start justify-between border-b p-5" style={{ borderColor: colors.border }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl"
+              style={{ background: colors.surfaceAlt, border: `2px solid ${colors.primary}` }}
+            >
+              🧑‍💼
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: colors.text }}>
+                Nikhil Chaudhary
+              </p>
+              <p className="text-xs" style={{ color: colors.textMuted }}>
+                Admin
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setDrawerOpen(false)}
+            className="shrink-0 rounded-lg p-1.5"
+            style={{ color: colors.textMuted }}
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className="p-2">
+          <Link
+            href="/dashboard/profile"
+            onClick={() => setDrawerOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium"
+            style={{ color: colors.text }}
+          >
+            <Pencil size={18} />
+            Edit Profile
+          </Link>
+
+          {/* Theme toggle */}
+        <div className="flex w-full items-center justify-between rounded-lg px-3 py-3">
+        <span className="flex items-center gap-3 text-sm font-medium" style={{ color: colors.text }}>
+            {mode === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+            Dark Mode
+        </span>
+
+        <button
+            type="button"
+            onClick={toggleTheme}
+            aria-pressed={mode === "dark"}
+            aria-label="Toggle dark mode"
+            className="inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200"
+            style={{ background: mode === "dark" ? colors.primary : colors.border }}
+        >
+            <span
+            className="h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200"
+            style={{ transform: mode === "dark" ? "translateX(20px)" : "translateX(0px)" }}
+            />
+        </button>
+        </div>
+
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-red-400"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+        </nav>
+      </aside>
+    </>
+  );
+}
