@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fraunces, Inter } from "next/font/google";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Eye, EyeOff } from "lucide-react";
 
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-display" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -23,6 +23,10 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // add these states alongside your existing password/confirmPassword state
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -173,33 +177,53 @@ export default function Signup() {
               onBlur={(e) => (e.target.style.borderColor = BORDER)}
             />
 
-            <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
+<label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
               Password
             </label>
-            <input
-              type="password"
-              placeholder="Create a password (min. 6 characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
-              style={{ borderColor: BORDER }}
-              onFocus={(e) => (e.target.style.borderColor = BRASS)}
-              onBlur={(e) => (e.target.style.borderColor = BORDER)}
-            />
+            <div className="relative mb-4">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Create a password (min. 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border p-3 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
+                style={{ borderColor: BORDER }}
+                onFocus={(e) => (e.target.style.borderColor = BRASS)}
+                onBlur={(e) => (e.target.style.borderColor = BORDER)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
               Confirm Password
             </label>
-            <input
-              type="password"
-              placeholder="Re-enter your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mb-6 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
-              style={{ borderColor: BORDER }}
-              onFocus={(e) => (e.target.style.borderColor = BRASS)}
-              onBlur={(e) => (e.target.style.borderColor = BORDER)}
-            />
+            <div className="relative mb-6">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-lg border p-3 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
+                style={{ borderColor: BORDER }}
+                onFocus={(e) => (e.target.style.borderColor = BRASS)}
+                onBlur={(e) => (e.target.style.borderColor = BORDER)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
 
             <button
               type="submit"

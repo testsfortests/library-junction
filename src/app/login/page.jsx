@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fraunces, Inter } from "next/font/google";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Eye, EyeOff } from "lucide-react";
 
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-display" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -21,6 +21,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -112,16 +114,26 @@ export default function Login() {
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
               Password
             </label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mb-6 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
-              style={{ borderColor: BORDER }}
-              onFocus={(e) => (e.target.style.borderColor = BRASS)}
-              onBlur={(e) => (e.target.style.borderColor = BORDER)}
-            />
+            <div className="relative mb-4">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border p-3 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
+                style={{ borderColor: BORDER }}
+                onFocus={(e) => (e.target.style.borderColor = BRASS)}
+                onBlur={(e) => (e.target.style.borderColor = BORDER)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
 
             <button
               type="submit"

@@ -1,55 +1,62 @@
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { connectDB } from "@/lib/mongodb";
+import Admin from "@/models/Admin";
+import { sendOtpEmail } from "@/lib/mailer";
+
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+}
+
 export async function POST(request) {
-  const admin = await getAdminFromRequest(request);
-  if (!admin) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-
   try {
-    const formData = await request.formData();
+    const { fullName, libraryName, mobile, email, password } = await request.json();
 
-    const fullName = formData.get("fullName");
-    const mobile = formData.get("mobile");
-    const monthlyFee = Number(formData.get("monthlyFee"));
-    const admissionDate = formData.get("admissionDate");
-    const status = formData.get("status");
-    const notes = formData.get("notes") || "";
-    const photoFile = formData.get("photo");
-    const docFiles = formData.getAll("documents");
-
-    if (!fullName || !mobile || !monthlyFee || !admissionDate) {
-      return NextResponse.json({ message: "Missing required fields." }, { status: 400 });
+    if (!fullName || !libraryName || !mobile || !email || !password) {
+      return NextResponse.json({ message: "All fields are required." }, { status: 400 });
     }
-    // documents requirement removed — identity proof is now optional
-
-    // Upload photo (optional) to R2
-    let photo = null;
-    if (photoFile && photoFile.name) {
-      photo = await uploadFileToR2(photoFile, "photos");
+    if (mobile.length !== 10) {
+      return NextResponse.json({ message: "Enter a valid 10-digit mobile number." }, { status: 400 });
     }
-
-    // Upload identity documents (optional) to R2
-    const identityDocs = [];
-    for (const doc of docFiles) {
-      if (doc.name) {
-        const uploaded = await uploadFileToR2(doc, "documents");
-        identityDocs.push(uploaded);
-      }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return NextResponse.json({ message: "Enter a valid email address." }, { status: 400 });
+    }
+    if (password.length < 6) {
+      return NextResponse.json({ message: "Password must be at least 6 characters." }, { status: 400 });
     }
 
     await connectDB();
-    const student = await Student.create({
-      adminId: admin.adminId,
+
+    const existing = await Admin.findOne({ mobile });
+    if (existing) {
+      return NextResponse.json({ message: "An account with this mobile number already exists." }, { status: 409 });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await Admin.create({
       fullName,
+      libraryName,
       mobile,
-      monthlyFee,
-      admissionDate: new Date(admissionDate),
-      status,
-      notes,
-      photo,
-      identityDocs,
+      email,
+      passwordHash,
+      emailVerified: false,
+      otpHash,
+      otpExpiresAt,
     });
 
-    return NextResponse.json({ success: true, student });
+    await sendOtpEmail(email, otp, fullName);
+
+    return NextResponse.json({
+      success: true,
+      message: "Account created. OTP sent to your email.",
+      mobile,
+    });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ message: "Failed to enroll student. Please try again." }, { status: 500 });
+    return NextResponse.json({ message: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
