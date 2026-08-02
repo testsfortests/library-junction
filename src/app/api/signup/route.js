@@ -10,9 +10,9 @@ function generateOtp() {
 
 export async function POST(request) {
   try {
-    const { fullName, libraryName, mobile, email, password } = await request.json();
+    const { fullName, businessName, mobile, email, password } = await request.json();
 
-    if (!fullName || !libraryName || !mobile || !email || !password) {
+    if (!fullName || !businessName || !mobile || !email || !password) {
       return NextResponse.json({ message: "All fields are required." }, { status: 400 });
     }
     if (mobile.length !== 10) {
@@ -39,7 +39,7 @@ export async function POST(request) {
 
     await Admin.create({
       fullName,
-      libraryName,
+      businessName,
       mobile,
       email,
       passwordHash,

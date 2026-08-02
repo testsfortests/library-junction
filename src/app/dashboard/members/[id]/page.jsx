@@ -13,6 +13,25 @@ const statusStyles = {
   inactive: { bg: "#F1F1F1", text: "#6B7280" },
 };
 
+const feeTypeOptions = [
+  { value: "monthly", label: "Monthly", suffix: "/mo" },
+  { value: "quarterly", label: "Quarterly", suffix: "/qtr" },
+  { value: "half_yearly", label: "Half Yearly", suffix: "/half-yr" },
+  { value: "yearly", label: "Yearly", suffix: "/yr" },
+];
+
+const shiftLabels = {
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+  full_day: "Full Day",
+};
+
+const paymentMethodLabels = {
+  cash: "Cash",
+  online: "Online",
+};
+
 function getInitials(name) {
   return (name || "")
     .split(" ")
@@ -35,33 +54,38 @@ function formatDisplayDate(dateStr) {
   });
 }
 
-export default function StudentDetailPage() {
+function feeSuffix(feeType) {
+  return feeTypeOptions.find((f) => f.value === feeType)?.suffix || "/mo";
+}
+
+export default function MemberDetailPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  const [student, setStudent] = useState(null);
+  const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [method, setMethod] = useState(""); // optional
   const [paymentError, setPaymentError] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  async function fetchStudent() {
+  async function fetchMember() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/students/${id}`);
+      const res = await fetch(`/api/members/${id}`);
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Failed to load student");
+        throw new Error(data.message || "Failed to load member");
       }
 
-      setStudent(data.student);
+      setMember(data.member);
     } catch (err) {
       setError(err.message || "Something went wrong.");
     } finally {
@@ -70,31 +94,32 @@ export default function StudentDetailPage() {
   }
 
   useEffect(() => {
-    if (id) fetchStudent();
+    if (id) fetchMember();
   }, [id]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 p-10 text-sm text-gray-400">
         <Loader2 size={16} className="animate-spin" />
-        Loading student…
+        Loading member…
       </div>
     );
   }
 
-  if (error || !student) {
+  if (error || !member) {
     return (
       <div className="p-8 text-center text-sm text-red-500">
-        {error || "Student not found."}
+        {error || "Member not found."}
       </div>
     );
   }
 
-  const collected = (student.payments || []).reduce((sum, p) => sum + p.amount, 0);
-  const isFree = student.monthlyFee === 0;
-  const due = isFree ? 0 : student.monthlyFee - collected;
-  const percentPaid = isFree ? 100 : Math.min(100, Math.round((collected / student.monthlyFee) * 100));
-  const badge = statusStyles[student.status];
+  const collected = (member.payments || []).reduce((sum, p) => sum + p.amount, 0);
+  const isFree = member.feeAmount === 0;
+  const due = isFree ? 0 : (member.feeAmount || 0) - collected;
+  const percentPaid = isFree ? 100 : Math.min(100, Math.round((collected / (member.feeAmount || 1)) * 100));
+  const badge = statusStyles[member.status];
+  const suffix = feeSuffix(member.feeType);
 
   const handleAddPayment = async () => {
     setPaymentError("");
@@ -105,10 +130,14 @@ export default function StudentDetailPage() {
 
     setSavingPayment(true);
     try {
-      const res = await fetch(`/api/students/${student._id}/payments`, {
+      const res = await fetch(`/api/members/${member._id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Number(amount), note }),
+        body: JSON.stringify({
+          amount: Number(amount),
+          note,
+          ...(method ? { method } : {}),
+        }),
       });
 
       const data = await res.json();
@@ -117,10 +146,11 @@ export default function StudentDetailPage() {
         throw new Error(data.message || "Failed to add payment");
       }
 
-      setStudent(data.student);
+      setMember(data.member);
       setShowAddPayment(false);
       setAmount("");
       setNote("");
+      setMethod("");
     } catch (err) {
       setPaymentError(err.message || "Something went wrong.");
     } finally {
@@ -129,18 +159,18 @@ export default function StudentDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Remove ${student.fullName} from students? This cannot be undone.`)) return;
+    if (!confirm(`Remove ${member.fullName} from members? This cannot be undone.`)) return;
 
     setDeleting(true);
     try {
-      const res = await fetch(`/api/students/${student._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/members/${member._id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data.message || "Failed to delete student");
+        throw new Error(data.message || "Failed to delete member");
       }
 
-      router.push("/dashboard/students");
+      router.push("/dashboard/members");
     } catch (err) {
       setError(err.message || "Something went wrong.");
       setDeleting(false);
@@ -160,10 +190,10 @@ export default function StudentDetailPage() {
 
       {/* Identity header */}
       <div className="mb-6 flex items-center gap-4 rounded-xl bg-white p-5 shadow-sm">
-        {student.photo?.url ? (
+        {member.photo?.url ? (
           <img
-            src={student.photo.url}
-            alt={student.fullName}
+            src={member.photo.url}
+            alt={member.fullName}
             className="h-14 w-14 shrink-0 rounded-full object-cover"
             style={{ border: `2px solid ${BRASS}` }}
           />
@@ -172,22 +202,37 @@ export default function StudentDetailPage() {
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-white"
             style={{ background: BRASS }}
           >
-            {getInitials(student.fullName)}
+            {getInitials(member.fullName)}
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-xl font-semibold" style={{ color: INK }}>
-            {student.fullName}
-          </h1>
-          <p className="text-sm text-gray-400">{student.mobile}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="truncate text-xl font-semibold" style={{ color: INK }}>
+              {member.fullName}
+            </h1>
+            {member.memberId && (
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={{ background: "#F6F1E7", color: BRASS }}
+              >
+                {member.memberId}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-400">{member.mobile}</p>
         </div>
         <span
           className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold capitalize"
           style={{ background: badge.bg, color: badge.text }}
         >
-          {student.status}
+          {member.status}
         </span>
       </div>
+
+      {/* Approval panel — shows only when fee/admission date are missing */}
+      {(member.feeAmount === null || member.feeAmount === undefined || !member.admissionDate) && (
+        <ApprovePanel member={member} onApproved={(updated) => setMember(updated)} />
+      )}
 
       {/* Fee Summary */}
       <div className="mb-6 rounded-xl bg-white p-5 shadow-sm">
@@ -209,15 +254,15 @@ export default function StudentDetailPage() {
 
         {isFree ? (
           <p className="rounded-lg p-3 text-center text-sm font-medium" style={{ background: "#F6F1E7", color: INK }}>
-            This student is enrolled for free — no fee is due.
+            This member is enrolled for free — no fee is due.
           </p>
         ) : (
           <>
             <div className="mb-4 grid grid-cols-3 gap-3 text-center">
               <div>
-                <p className="text-xs text-gray-400">Monthly Fee</p>
+                <p className="text-xs text-gray-400">Fee{suffix}</p>
                 <p className="mt-1 text-lg font-semibold" style={{ color: INK }}>
-                  {formatRupees(student.monthlyFee)}
+                  {formatRupees(member.feeAmount)}
                 </p>
               </div>
               <div>
@@ -252,12 +297,12 @@ export default function StudentDetailPage() {
             Payment History
           </h2>
           <p className="mb-3 text-xs text-gray-400">
-            {(student.payments || []).length} payment{(student.payments || []).length !== 1 ? "s" : ""} recorded
+            {(member.payments || []).length} payment{(member.payments || []).length !== 1 ? "s" : ""} recorded
           </p>
 
-          {(student.payments || []).length > 0 ? (
+          {(member.payments || []).length > 0 ? (
             <div className="divide-y" style={{ borderColor: "#F0EDE5" }}>
-              {[...student.payments].reverse().map((p, i) => (
+              {[...member.payments].reverse().map((p, i) => (
                 <div key={i} className="flex items-center justify-between py-3">
                   <div>
                     <p className="text-sm font-semibold" style={{ color: INK }}>
@@ -265,6 +310,7 @@ export default function StudentDetailPage() {
                     </p>
                     <p className="text-xs text-gray-400">
                       {formatDisplayDate(p.date)}
+                      {p.method && ` · ${paymentMethodLabels[p.method] || p.method}`}
                       {p.note && ` · ${p.note}`}
                     </p>
                   </div>
@@ -283,19 +329,37 @@ export default function StudentDetailPage() {
           <div>
             <p className="text-xs text-gray-400">Email</p>
             <p className="mt-1 truncate text-sm font-medium" style={{ color: INK }}>
-              {student.email || "—"}
+              {member.email || "—"}
             </p>
           </div>
           <div>
             <p className="text-xs text-gray-400">Admission</p>
             <p className="mt-1 text-sm font-medium" style={{ color: INK }}>
-              {formatDisplayDate(student.admissionDate)}
+              {formatDisplayDate(member.admissionDate)}
             </p>
           </div>
           <div>
             <p className="text-xs text-gray-400">Due Date</p>
             <p className="mt-1 text-sm font-medium" style={{ color: INK }}>
-              {formatDisplayDate(student.dueDate)}
+              {formatDisplayDate(member.dueDate)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Shift</p>
+            <p className="mt-1 text-sm font-medium" style={{ color: INK }}>
+              {member.shift ? shiftLabels[member.shift] || member.shift : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Payment Method</p>
+            <p className="mt-1 text-sm font-medium" style={{ color: INK }}>
+              {member.paymentMethod ? paymentMethodLabels[member.paymentMethod] || member.paymentMethod : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Fee Cycle</p>
+            <p className="mt-1 text-sm font-medium capitalize" style={{ color: INK }}>
+              {member.feeType ? member.feeType.replace("_", " ") : "—"}
             </p>
           </div>
         </div>
@@ -350,6 +414,18 @@ export default function StudentDetailPage() {
               style={{ borderColor: "#E5E1D8" }}
             />
 
+            <label className="mb-1 block text-xs font-medium text-gray-500">Payment Method (optional)</label>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              className="mb-4 w-full rounded-lg border bg-white p-3 text-sm text-gray-900 outline-none"
+              style={{ borderColor: "#E5E1D8" }}
+            >
+              <option value="">Not specified</option>
+              <option value="cash">Cash</option>
+              <option value="online">Online</option>
+            </select>
+
             <label className="mb-1 block text-xs font-medium text-gray-500">Note (optional)</label>
             <input
               type="text"
@@ -381,6 +457,107 @@ export default function StudentDetailPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ApprovePanel({ member, onApproved }) {
+  const [feeType, setFeeType] = useState("monthly");
+  const [feeAmount, setFeeAmount] = useState("1000");
+  const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState("");
+
+  const handleApprove = async () => {
+    setApproveError("");
+    if (feeAmount === "" || Number(feeAmount) < 0) {
+      setApproveError("Enter a valid fee amount (0 for free).");
+      return;
+    }
+
+    setApproving(true);
+    try {
+      const res = await fetch(`/api/members/${member._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feeType,
+          feeAmount: Number(feeAmount),
+          admissionDate,
+          status: "active",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to approve member");
+
+      onApproved(data.member);
+    } catch (err) {
+      setApproveError(err.message || "Something went wrong.");
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  return (
+    <div className="mb-6 rounded-xl p-5 shadow-sm" style={{ background: "#FDF0E3" }}>
+      <h2 className="mb-1 text-sm font-semibold" style={{ color: INK }}>
+        New enrollment — needs review
+      </h2>
+      <p className="mb-4 text-xs" style={{ color: "#B7791F" }}>
+        Set their fee and start date to activate this member.
+      </p>
+
+      {approveError && (
+        <p className="mb-3 rounded-lg bg-red-50 p-2 text-center text-xs text-red-600">{approveError}</p>
+      )}
+
+      <div className="mb-3 flex gap-2">
+        <div className="flex-1">
+          <label className="mb-1 block text-xs font-medium text-gray-600">Fee Amount (₹)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={feeAmount}
+            onChange={(e) => setFeeAmount(e.target.value.replace(/\D/g, ""))}
+            className="w-full rounded-lg border bg-white p-2.5 text-sm text-gray-900 outline-none"
+            style={{ borderColor: "#E5E1D8" }}
+          />
+        </div>
+        <div className="w-32 shrink-0">
+          <label className="mb-1 block text-xs font-medium text-gray-600">Fee Cycle</label>
+          <select
+            value={feeType}
+            onChange={(e) => setFeeType(e.target.value)}
+            className="w-full rounded-lg border bg-white p-2.5 text-sm text-gray-900 outline-none"
+            style={{ borderColor: "#E5E1D8" }}
+          >
+            {feeTypeOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <label className="mb-1 block text-xs font-medium text-gray-600">Admission Date</label>
+      <input
+        type="date"
+        value={admissionDate}
+        onChange={(e) => setAdmissionDate(e.target.value)}
+        className="mb-4 w-full rounded-lg border bg-white p-2.5 text-sm text-gray-900 outline-none"
+        style={{ borderColor: "#E5E1D8" }}
+      />
+
+      <button
+        onClick={handleApprove}
+        disabled={approving}
+        className="w-full rounded-lg p-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        style={{ background: INK }}
+      >
+        {approving ? "Activating…" : "Activate Member"}
+      </button>
     </div>
   );
 }

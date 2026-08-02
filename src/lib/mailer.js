@@ -10,12 +10,12 @@ const transporter = nodemailer.createTransport({
 
 export async function sendOtpEmail(toEmail, otp, fullName) {
   await transporter.sendMail({
-    from: `"Library Junction" <${process.env.EMAIL_USER}>`,
+    from: `"Member Junction" <${process.env.EMAIL_USER}>`,
     to: toEmail,
-    subject: "Verify your Library Junction account",
+    subject: "Verify your Member Junction account",
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-        <h2 style="color: #1C2541;">Library Junction</h2>
+        <h2 style="color: #1C2541;">Member Junction</h2>
         <p>Hi ${fullName},</p>
         <p>Your verification code is:</p>
         <p style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #1C2541;">${otp}</p>

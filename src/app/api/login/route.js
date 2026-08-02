@@ -35,7 +35,7 @@ export async function POST(request) {
       adminId: admin._id.toString(),
       mobile: admin.mobile,
       fullName: admin.fullName,
-      libraryName: admin.libraryName,
+      businessName: admin.businessName,
     });
 
     const response = NextResponse.json({ success: true, message: "Login successful" });
@@ -52,3 +52,4 @@ export async function POST(request) {
     return NextResponse.json({ message: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
+

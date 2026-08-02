@@ -17,6 +17,25 @@ const feePresets = [
   { label: "₹2000", value: 2000 },
 ];
 
+const feeTypeOptions = [
+  { value: "monthly", label: "Monthly", suffix: "/mo" },
+  { value: "quarterly", label: "Quarterly", suffix: "/qtr" },
+  { value: "half_yearly", label: "Half Yearly", suffix: "/half-yr" },
+  { value: "yearly", label: "Yearly", suffix: "/yr" },
+];
+
+const paymentMethodOptions = [
+  { value: "cash", label: "Cash" },
+  { value: "online", label: "Online" },
+];
+
+const shiftOptions = [
+  { value: "morning", label: "Morning" },
+  { value: "afternoon", label: "Afternoon" },
+  { value: "evening", label: "Evening" },
+  { value: "full_day", label: "Full Day" },
+];
+
 function formatDisplayDate(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -25,13 +44,25 @@ function formatDisplayDate(dateStr) {
 const inputClass =
   "w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400";
 
-export default function AddStudentPage() {
+const selectClass =
+  "w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition bg-white";
+
+export default function AddMemberPage() {
   const router = useRouter();
 
   const [fullName, setFullName] = useState("");
   const [mobile, setMobile] = useState("");
   const [photo, setPhoto] = useState(null);
-  const [monthlyFee, setMonthlyFee] = useState("1000");
+
+  const [feeType, setFeeType] = useState("monthly");
+  const [feeAmount, setFeeAmount] = useState("1000");
+
+  const [paidAmount, setPaidAmount] = useState("1000");
+  const [paidTouched, setPaidTouched] = useState(false); // once admin edits paidAmount manually, stop auto-syncing it
+
+  const [paymentMethod, setPaymentMethod] = useState(""); // optional, "" = not specified
+  const [shift, setShift] = useState(""); // optional, "" = not specified
+
   const [admissionDate, setAdmissionDate] = useState(today);
   const [status, setStatus] = useState("active");
   const [documents, setDocuments] = useState([]);
@@ -50,12 +81,28 @@ export default function AddStudentPage() {
     { value: "inactive", label: "Inactive", color: "#9CA3AF" },
   ];
 
-  const feeValue = monthlyFee === "" ? 0 : Number(monthlyFee);
+  const feeValue = feeAmount === "" ? 0 : Number(feeAmount);
+  const activeFeeType = feeTypeOptions.find((f) => f.value === feeType) || feeTypeOptions[0];
+  const paidValue = paidAmount === "" ? 0 : Number(paidAmount);
 
   const handleFeeChange = (e) => {
     // strip non-digits and leading zeros (e.g. "0200" -> "200"), allow empty while typing
     const cleaned = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-    setMonthlyFee(cleaned);
+    setFeeAmount(cleaned);
+    // keep paying amount following the fee amount until admin edits it manually
+    if (!paidTouched) setPaidAmount(cleaned);
+  };
+
+  const handleFeePreset = (value) => {
+    const asStr = String(value);
+    setFeeAmount(asStr);
+    if (!paidTouched) setPaidAmount(asStr);
+  };
+
+  const handlePaidChange = (e) => {
+    const cleaned = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+    setPaidTouched(true);
+    setPaidAmount(cleaned);
   };
 
   const handlePhotoChange = (e) => {
@@ -84,8 +131,12 @@ export default function AddStudentPage() {
       setError("Enter a valid 10-digit mobile number.");
       return;
     }
-    if (monthlyFee === "" || feeValue < 0) {
-      setError("Enter a valid monthly fee (0 for free).");
+    if (feeAmount === "" || feeValue < 0) {
+      setError("Enter a valid fee amount (0 for free).");
+      return;
+    }
+    if (paidAmount === "" || paidValue < 0) {
+      setError("Enter a valid paying amount.");
       return;
     }
 
@@ -94,24 +145,28 @@ export default function AddStudentPage() {
       const formData = new FormData();
       formData.append("fullName", fullName.trim());
       formData.append("mobile", mobile.trim());
-      formData.append("monthlyFee", feeValue);
+      formData.append("feeType", feeType);
+      formData.append("feeAmount", feeValue);
+      formData.append("paidAmount", paidValue);
+      if (paymentMethod) formData.append("paymentMethod", paymentMethod);
+      if (shift) formData.append("shift", shift);
       formData.append("admissionDate", admissionDate);
       formData.append("status", status);
       formData.append("notes", notes);
       if (photo) formData.append("photo", photo);
       documents.forEach((doc) => formData.append("documents", doc));
 
-      const res = await fetch("/api/students", {
+      const res = await fetch("/api/members", {
         method: "POST",
         body: formData,
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to enroll student");
+        throw new Error(data.message || "Failed to enroll members");
       }
 
-      router.push("/dashboard/students");
+      router.push("/dashboard/members");
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -123,7 +178,7 @@ export default function AddStudentPage() {
     <div className="mx-auto max-w-2xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold" style={{ color: INK }}>
-          Add New Student
+          Add New Member
         </h1>
         <p className="mt-1 text-sm text-gray-500">Fill in the details to enroll a new member</p>
       </div>
@@ -166,7 +221,7 @@ export default function AddStudentPage() {
             {photo ? (
               <img
                 src={URL.createObjectURL(photo)}
-                alt="Student"
+                alt="Member"
                 className="h-12 w-12 rounded-full object-cover"
                 style={{ border: `2px solid ${BRASS}` }}
               />
@@ -220,28 +275,50 @@ export default function AddStudentPage() {
             Enrollment Details
           </h2>
 
-          <label className="mb-1 block text-xs font-medium text-gray-500">Monthly Fee (₹)*</label>
-          <div className="mb-2 flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
-            <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
-              ₹
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={monthlyFee}
-              onChange={handleFeeChange}
-              placeholder="Enter monthly fee"
-              className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-            />
+          {/* Fee Amount + Fee Cycle */}
+          <div className="mb-2 flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                Fee Amount (₹){activeFeeType.suffix}*
+              </label>
+              <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
+                <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
+                  ₹
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={feeAmount}
+                  onChange={handleFeeChange}
+                  placeholder="Enter fee amount"
+                  className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                />
+              </div>
+            </div>
+            <div className="w-36 shrink-0">
+              <label className="mb-1 block text-xs font-medium text-gray-500">Fee Cycle*</label>
+              <select
+                value={feeType}
+                onChange={(e) => setFeeType(e.target.value)}
+                className={selectClass}
+                style={{ borderColor: "#E5E1D8" }}
+              >
+                {feeTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Quick-select fee presets */}
-          <div className="flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             {feePresets.map((preset) => (
               <button
                 key={preset.label}
                 type="button"
-                onClick={() => setMonthlyFee(String(preset.value))}
+                onClick={() => handleFeePreset(preset.value)}
                 className="rounded-full px-3 py-1.5 text-xs font-medium transition"
                 style={{
                   background: feeValue === preset.value ? INK : "#FFFFFF",
@@ -254,16 +331,73 @@ export default function AddStudentPage() {
             ))}
           </div>
 
-          <label className="mb-1 mt-4 block text-xs font-medium text-gray-500">Admission Date*</label>
-          <input
-            type="date"
-            value={admissionDate}
-            onChange={(e) => setAdmissionDate(e.target.value)}
-            className={inputClass}
-            style={{ borderColor: "#E5E1D8" }}
-          />
+          {/* Paying Amount + Payment Method */}
+          <div className="mb-4 flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-500">Paying Amount (₹)*</label>
+              <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
+                <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
+                  ₹
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={paidAmount}
+                  onChange={handlePaidChange}
+                  placeholder="Enter amount paying"
+                  className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                />
+              </div>
+            </div>
+            <div className="w-36 shrink-0">
+              <label className="mb-1 block text-xs font-medium text-gray-500">Payment Method</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className={selectClass}
+                style={{ borderColor: "#E5E1D8" }}
+              >
+                <option value="">Not specified</option>
+                {paymentMethodOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-          <label className="mb-2 mt-4 block text-xs font-medium text-gray-500">Status*</label>
+          {/* Admission Date + Shift */}
+          <div className="mb-4 flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-500">Admission Date*</label>
+              <input
+                type="date"
+                value={admissionDate}
+                onChange={(e) => setAdmissionDate(e.target.value)}
+                className={inputClass}
+                style={{ borderColor: "#E5E1D8" }}
+              />
+            </div>
+            <div className="w-36 shrink-0">
+              <label className="mb-1 block text-xs font-medium text-gray-500">Shift</label>
+              <select
+                value={shift}
+                onChange={(e) => setShift(e.target.value)}
+                className={selectClass}
+                style={{ borderColor: "#E5E1D8" }}
+              >
+                <option value="">Not specified</option>
+                {shiftOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <label className="mb-2 block text-xs font-medium text-gray-500">Status*</label>
           <div className="flex gap-2">
             {statusOptions.map((opt) => (
               <button
@@ -370,13 +504,19 @@ export default function AddStudentPage() {
 
         {/* Summary bar */}
         <div
-          className="mb-4 flex items-center justify-between rounded-xl p-4 text-sm"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-4 text-sm"
           style={{ background: "#F6F1E7" }}
         >
           <div>
             <p className="text-xs text-gray-400">Fee</p>
             <p className="font-semibold" style={{ color: INK }}>
-              {feeValue === 0 ? "Free" : `₹${feeValue.toLocaleString("en-IN")}/mo`}
+              {feeValue === 0 ? "Free" : `₹${feeValue.toLocaleString("en-IN")}${activeFeeType.suffix}`}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Paying Now</p>
+            <p className="font-semibold" style={{ color: INK }}>
+              ₹{paidValue.toLocaleString("en-IN")}
             </p>
           </div>
           <div>
@@ -413,7 +553,7 @@ export default function AddStudentPage() {
             className="flex-1 rounded-lg p-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             style={{ background: INK }}
           >
-            {loading ? "Enrolling..." : "Enroll Student"}
+            {loading ? "Enrolling..." : "Enroll Member"}
           </button>
         </div>
       </form>

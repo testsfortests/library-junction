@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fraunces, Inter } from "next/font/google";
-import { BookOpen, Eye, EyeOff } from "lucide-react";
+import { Building2 , Eye, EyeOff } from "lucide-react";
 
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-display" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -18,7 +18,7 @@ const TEXT_MUTED = "#6B7280";
 export default function Signup() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
-  const [libraryName, setLibraryName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +34,7 @@ export default function Signup() {
     e.preventDefault();
     setError("");
 
-    if (!fullName.trim() || !libraryName.trim() || !mobile.trim() || !email.trim() || !password) {
+    if (!fullName.trim() || !businessName.trim() || !mobile.trim() || !email.trim() || !password) {
       setError("Please fill in all required fields.");
       return;
     }
@@ -62,7 +62,7 @@ export default function Signup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName: fullName.trim(),
-          libraryName: libraryName.trim(),
+          businessName: businessName.trim(),
           mobile: mobile.trim(),
           email: email.trim(),
           password,
@@ -96,12 +96,12 @@ export default function Signup() {
 
         <div className="px-8 pb-8 pt-7">
           <div className="mb-8 flex flex-col items-center text-center">
-            <BookOpen size={28} color={BRASS} className="mb-2" />
+            <Building2  size={28} color={BRASS} className="mb-2" />
             <h1
               className="text-2xl font-bold tracking-[0.08em]"
               style={{ fontFamily: "var(--font-display)", color: INK }}
             >
-              LIBRARY JUNCTION
+              MEMBER JUNCTION
             </h1>
             <p className="mt-1 text-sm" style={{ color: TEXT_MUTED }}>
               Create your admin account
@@ -130,13 +130,13 @@ export default function Signup() {
             />
 
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
-              Library Name
+              Business Name
             </label>
             <input
               type="text"
-              placeholder="Enter your library name"
-              value={libraryName}
-              onChange={(e) => setLibraryName(e.target.value)}
+              placeholder="Enter your business name"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
               className="mb-4 w-full rounded-lg border p-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400"
               style={{ borderColor: BORDER }}
               onFocus={(e) => (e.target.style.borderColor = BRASS)}

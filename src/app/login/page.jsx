@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fraunces, Inter } from "next/font/google";
-import { BookOpen, Eye, EyeOff } from "lucide-react";
+import { Building2 , Eye, EyeOff } from "lucide-react";
 
 const fraunces = Fraunces({ subsets: ["latin"], weight: ["600"], variable: "--font-display" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -76,12 +76,12 @@ export default function Login() {
 
         <div className="px-8 pb-8 pt-7">
           <div className="mb-8 flex flex-col items-center text-center">
-            <BookOpen size={28} color={BRASS} className="mb-2" />
+            <Building2  size={28} color={BRASS} className="mb-2" />
             <h1
               className="text-2xl font-bold tracking-[0.08em]"
               style={{ fontFamily: "var(--font-display)", color: INK }}
             >
-              LIBRARY JUNCTION
+              MEMBER JUNCTION
             </h1>
           </div>
 

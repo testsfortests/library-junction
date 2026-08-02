@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Library Management",
-  description: "Library App",
+  title: "Member Junction",
+  description: "Member Junction App",
 };
 
 export default function RootLayout({ children }) {

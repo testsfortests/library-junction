@@ -52,7 +52,7 @@ export default function Sidebar() {
       <div className="flex items-center justify-between px-4 py-4">
         {!collapsed && (
           <span className="text-sm font-semibold" style={{ color: INK }}>
-            Library Admin
+            Member Admin
           </span>
         )}
         <button

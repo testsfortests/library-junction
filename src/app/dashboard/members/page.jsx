@@ -13,6 +13,13 @@ const statusStyles = {
   inactive: { bg: "#F1F1F1", text: "#6B7280" },
 };
 
+const feeTypeSuffix = {
+  monthly: "/mo",
+  quarterly: "/qtr",
+  half_yearly: "/half-yr",
+  yearly: "/yr",
+};
+
 function getInitials(name) {
   return (name || "")
     .split(" ")
@@ -26,12 +33,12 @@ function formatRupees(amount) {
   return `₹${(amount || 0).toLocaleString("en-IN")}`;
 }
 
-function getCollected(student) {
-  return (student.payments || []).reduce((sum, p) => sum + p.amount, 0);
+function getCollected(member) {
+  return (member.payments || []).reduce((sum, p) => sum + p.amount, 0);
 }
 
-export default function StudentsPage() {
-  const [students, setStudents] = useState([]);
+export default function MembersPage() {
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
@@ -40,30 +47,30 @@ export default function StudentsPage() {
   const filters = ["all", "active", "pending", "inactive"];
 
   useEffect(() => {
-    async function fetchStudents() {
+    async function fetchMembers() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("/api/students");
+        const res = await fetch("/api/members");
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || "Failed to load students");
+          throw new Error(data.message || "Failed to load members");
         }
 
-        setStudents(data.students || []);
+        setMembers(data.members || []);
       } catch (err) {
-        setError(err.message || "Something went wrong while loading students.");
+        setError(err.message || "Something went wrong while loading members.");
       } finally {
         setLoading(false);
       }
     }
 
-    fetchStudents();
+    fetchMembers();
   }, []);
 
-  const filteredStudents = useMemo(() => {
-    let result = filter === "all" ? students : students.filter((s) => s.status === filter);
+  const filteredMembers = useMemo(() => {
+    let result = filter === "all" ? members : members.filter((s) => s.status === filter);
 
     const q = query.trim().toLowerCase();
     if (q) {
@@ -71,16 +78,17 @@ export default function StudentsPage() {
         const name = (s.fullName || "").toLowerCase();
         const email = (s.email || "").toLowerCase();
         const mobile = (s.mobile || "").toLowerCase();
-        return name.includes(q) || email.includes(q) || mobile.includes(q);
+        const memberId = (s.memberId || "").toLowerCase();
+        return name.includes(q) || email.includes(q) || mobile.includes(q) || memberId.includes(q);
       });
     }
 
     return result;
-  }, [students, filter, query]);
+  }, [members, filter, query]);
 
   const totalCollected = useMemo(
-    () => students.reduce((sum, s) => sum + getCollected(s), 0),
-    [students]
+    () => members.reduce((sum, s) => sum + getCollected(s), 0),
+    [members]
   );
 
   return (
@@ -88,14 +96,14 @@ export default function StudentsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold" style={{ color: INK }}>
-            Students
+            Members
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            {loading ? "Loading…" : `${filteredStudents.length} of ${students.length} members`}
+            {loading ? "Loading…" : `${filteredMembers.length} of ${members.length} members`}
           </p>
         </div>
         <Link
-          href="/dashboard/add-student"
+          href="/dashboard/add-member"
           className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition"
           style={{ background: INK }}
         >
@@ -107,9 +115,9 @@ export default function StudentsPage() {
       {/* Summary cards */}
       <div className="mb-6 grid grid-cols-2 gap-4">
         <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Total Students</p>
+          <p className="text-xs font-medium text-gray-400">Total Members</p>
           <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
-            {students.length}
+            {members.length}
           </p>
         </div>
         <div className="rounded-xl bg-white p-5 shadow-sm">
@@ -127,7 +135,7 @@ export default function StudentsPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, email, or mobile number"
+          placeholder="Search by name, email, mobile, or member ID"
           className="w-full text-sm text-gray-900 outline-none placeholder:text-gray-400"
         />
       </div>
@@ -150,35 +158,37 @@ export default function StudentsPage() {
         ))}
       </div>
 
-      {/* Student list */}
+      {/* Member list */}
       <div className="rounded-xl bg-white shadow-sm">
         {loading ? (
           <div className="flex items-center justify-center gap-2 p-10 text-sm text-gray-400">
             <Loader2 size={16} className="animate-spin" />
-            Loading students…
+            Loading members...
           </div>
         ) : error ? (
           <div className="p-8 text-center text-sm text-red-500">{error}</div>
         ) : (
           <div className="divide-y" style={{ borderColor: "#F0EDE5" }}>
-            {filteredStudents.map((student) => {
-              const collected = getCollected(student);
-              const due = student.monthlyFee - collected;
-              const isFree = student.monthlyFee === 0;
+            {filteredMembers.map((member) => {
+              const collected = getCollected(member);
+              const feeAmount = member.feeAmount || 0;
+              const due = feeAmount - collected;
+              const isFree = feeAmount === 0;
               const isPaid = isFree || due <= 0;
-              const badge = statusStyles[student.status];
+              const badge = statusStyles[member.status];
+              const suffix = feeTypeSuffix[member.feeType] || "/mo";
 
               return (
                 <Link
-                  key={student._id}
-                  href={`/dashboard/students/${student._id}`}
+                  key={member._id}
+                  href={`/dashboard/members/${member._id}`}
                   className="flex items-center gap-3 p-4 transition hover:bg-gray-50"
                 >
                   {/* Avatar — photo if available, initials otherwise */}
-                  {student.photo?.url ? (
+                  {member.photo?.url ? (
                     <img
-                      src={student.photo.url}
-                      alt={student.fullName}
+                      src={member.photo.url}
+                      alt={member.fullName}
                       className="h-10 w-10 shrink-0 rounded-full object-cover"
                       style={{ border: `1.5px solid ${BRASS}` }}
                     />
@@ -187,26 +197,34 @@ export default function StudentsPage() {
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
                       style={{ background: BRASS }}
                     >
-                      {getInitials(student.fullName)}
+                      {getInitials(member.fullName)}
                     </div>
                   )}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium" style={{ color: INK }}>
-                        {student.fullName}
+                        {member.fullName}
                       </p>
+                      {member.memberId && (
+                        <span
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ background: "#F6F1E7", color: BRASS }}
+                        >
+                          {member.memberId}
+                        </span>
+                      )}
                       <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize"
+                        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize"
                         style={{ background: badge.bg, color: badge.text }}
                       >
-                        {student.status}
+                        {member.status}
                       </span>
                     </div>
                     <p className="truncate text-xs text-gray-400">
-                      {student.mobile}
-                      {student.email ? ` · ${student.email}` : ""} ·{" "}
-                      {isFree ? "Free" : `${formatRupees(student.monthlyFee)}/mo`}
+                      {member.mobile}
+                      {member.email ? ` · ${member.email}` : ""} ·{" "}
+                      {isFree ? "Free" : `${formatRupees(feeAmount)}${suffix}`}
                     </p>
                   </div>
 
@@ -222,11 +240,11 @@ export default function StudentsPage() {
               );
             })}
 
-            {filteredStudents.length === 0 && (
+            {filteredMembers.length === 0 && (
               <div className="p-8 text-center text-sm text-gray-400">
                 {query || filter !== "all"
-                  ? "No students match your search or filter."
-                  : "No students enrolled yet."}
+                  ? "No members match your search or filter."
+                  : "No members enrolled yet."}
               </div>
             )}
           </div>

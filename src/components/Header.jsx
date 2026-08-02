@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, BookOpen, X, Pencil, LogOut, Moon, Sun } from "lucide-react";
+import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 function getInitials(name) {
@@ -57,12 +57,12 @@ export default function Header() {
         </button>
 
         <div className="flex items-center gap-2">
-          <BookOpen size={20} color={colors.primary} />
+          <Building2 size={20} color={colors.primary} />
           <span
             className="text-xs font-bold uppercase tracking-[0.15em] sm:text-sm"
             style={{ color: colors.text }}
           >
-            Library Junction
+            Member Junction
           </span>
         </div>
 
@@ -103,7 +103,7 @@ export default function Header() {
                 {displayName}
               </p>
               <p className="text-xs" style={{ color: colors.textMuted }}>
-                Admin
+                {admin?.businessName || "Admin"}
               </p>
             </div>
           </div>
@@ -118,6 +118,16 @@ export default function Header() {
         </div>
 
         <nav className="p-2">
+          <Link
+            href="/dashboard/qr-code"
+            onClick={() => setDrawerOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium"
+            style={{ color: colors.text }}
+          >
+            <QrCode size={18} />
+            Enrollment QR
+          </Link>
+
           <Link
             href="/dashboard/profile"
             onClick={() => setDrawerOpen(false)}
