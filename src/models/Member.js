@@ -13,7 +13,7 @@ const PaymentSchema = new mongoose.Schema(
 const DocumentSchema = new mongoose.Schema(
   {
     key: { type: String, required: true },
-    url: { type: String, required: true },
+    url: { type: String },
   },
   { _id: false }
 );

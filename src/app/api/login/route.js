@@ -36,6 +36,7 @@ export async function POST(request) {
       mobile: admin.mobile,
       fullName: admin.fullName,
       businessName: admin.businessName,
+      role: admin.role || "admin", // 👈 new
     });
 
     const response = NextResponse.json({ success: true, message: "Login successful" });
@@ -52,4 +53,3 @@ export async function POST(request) {
     return NextResponse.json({ message: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
-

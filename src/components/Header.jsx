@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode } from "lucide-react";
+import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 function getInitials(name) {
@@ -35,6 +35,7 @@ export default function Header() {
   }, []);
 
   const displayName = admin?.fullName || "Admin";
+  const isOwner = admin?.role === "owner";
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
@@ -137,6 +138,18 @@ export default function Header() {
             <Pencil size={18} />
             Edit Profile
           </Link>
+
+          {isOwner && (
+            <Link
+              href="/dashboard/owner"
+              onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium"
+              style={{ color: colors.text }}
+            >
+              <ShieldCheck size={18} />
+              Owner Panel
+            </Link>
+          )}
 
           {/* Theme toggle */}
           <div className="flex w-full items-center justify-between rounded-lg px-3 py-3">

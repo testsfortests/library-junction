@@ -11,6 +11,7 @@ const AdminSchema = new mongoose.Schema(
     emailVerified: { type: Boolean, default: false },
     otpHash: { type: String, default: null },
     otpExpiresAt: { type: Date, default: null },
+    role: { type: String, enum: ["admin", "owner"], default: "admin" }, // 👈 new
   },
   { timestamps: true }
 );
@@ -37,7 +38,7 @@ function generateSuffix() {
 }
 
 AdminSchema.pre("validate", async function () {
-  if (this.businessId) return; // already set, don't regenerate
+  if (this.businessId) return;
 
   const initials = buildInitials(this.businessName || "");
   const Admin = mongoose.models.Admin || mongoose.model("Admin", AdminSchema);
