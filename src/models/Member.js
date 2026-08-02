@@ -43,7 +43,7 @@ const MemberSchema = new mongoose.Schema(
       default: undefined, // optional
     },
 
-    status: { type: String, enum: ["active", "pending", "inactive"], default: "pending" },
+    status: { type: String, enum: ["active", "pending", "inactive", "review"], default: "pending" },
     admissionDate: { type: Date, default: null }, // null until admin sets it (self-join case)
     dueDate: { type: Date },
     notes: { type: String, default: "" },

@@ -45,7 +45,7 @@ export async function POST(request, { params }) {
       email: pending.email,
       photo: pending.photo,
       identityDocs: pending.identityDocs,
-      status: "pending",
+      status: "review",
       source: "self",
       feeType: "monthly",
       feeAmount: null,

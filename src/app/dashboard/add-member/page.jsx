@@ -18,10 +18,10 @@ const feePresets = [
 ];
 
 const feeTypeOptions = [
-  { value: "monthly", label: "Monthly", suffix: "/mo" },
-  { value: "quarterly", label: "Quarterly", suffix: "/qtr" },
-  { value: "half_yearly", label: "Half Yearly", suffix: "/half-yr" },
-  { value: "yearly", label: "Yearly", suffix: "/yr" },
+  { value: "monthly", label: "Monthly", suffix: "/mo", months: 1 },
+  { value: "quarterly", label: "Quarterly", suffix: "/qtr", months: 3 },
+  { value: "half_yearly", label: "Half Yearly", suffix: "/half-yr", months: 6 },
+  { value: "yearly", label: "Yearly", suffix: "/yr", months: 12 },
 ];
 
 const paymentMethodOptions = [
@@ -36,9 +36,32 @@ const shiftOptions = [
   { value: "full_day", label: "Full Day" },
 ];
 
+const STATUS_COLORS = {
+  active: "#1E8E3E",
+  pending: "#B7791F",
+};
+
 function formatDisplayDate(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+// Adds `months` to a YYYY-MM-DD date string, clamping the day to the
+// target month's last day (e.g. Jan 31 + 1mo -> Feb 28/29).
+function addMonthsToDateStr(dateStr, months) {
+  const d = new Date(dateStr);
+  const originalDay = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const daysInResultMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(originalDay, daysInResultMonth));
+  return d.toISOString().split("T")[0];
+}
+
+function computeStatus(feeValue, paidValue) {
+  if (feeValue === 0) return "active"; // free membership, nothing ever due
+  if (paidValue >= feeValue) return "active";
+  return "pending"; // covers partial payment and zero paid on a non-free plan
 }
 
 const inputClass =
@@ -58,13 +81,12 @@ export default function AddMemberPage() {
   const [feeAmount, setFeeAmount] = useState("1000");
 
   const [paidAmount, setPaidAmount] = useState("1000");
-  const [paidTouched, setPaidTouched] = useState(false); // once admin edits paidAmount manually, stop auto-syncing it
+  const [paidTouched, setPaidTouched] = useState(false); // once admin picks "Zero" or edits paidAmount manually, stop auto-syncing it to fee amount
 
   const [paymentMethod, setPaymentMethod] = useState(""); // optional, "" = not specified
   const [shift, setShift] = useState(""); // optional, "" = not specified
 
   const [admissionDate, setAdmissionDate] = useState(today);
-  const [status, setStatus] = useState("active");
   const [documents, setDocuments] = useState([]);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -75,15 +97,17 @@ export default function AddMemberPage() {
   const docInputRef = useRef(null);
   const docCameraRef = useRef(null);
 
-  const statusOptions = [
-    { value: "active", label: "Active", color: "#1E8E3E" },
-    { value: "pending", label: "Pending", color: "#B7791F" },
-    { value: "inactive", label: "Inactive", color: "#9CA3AF" },
-  ];
-
   const feeValue = feeAmount === "" ? 0 : Number(feeAmount);
   const activeFeeType = feeTypeOptions.find((f) => f.value === feeType) || feeTypeOptions[0];
   const paidValue = paidAmount === "" ? 0 : Number(paidAmount);
+
+  // Derived, not stored in form state — computed fresh from fee/paid every render
+  const computedStatus = computeStatus(feeValue, paidValue);
+  const dueDate = addMonthsToDateStr(admissionDate, activeFeeType.months);
+
+  const isFree = feeValue === 0;
+  const isFullSelected = !isFree && paidValue === feeValue;
+  const isZeroSelected = !isFree && paidValue === 0;
 
   const handleFeeChange = (e) => {
     // strip non-digits and leading zeros (e.g. "0200" -> "200"), allow empty while typing
@@ -103,6 +127,17 @@ export default function AddMemberPage() {
     const cleaned = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
     setPaidTouched(true);
     setPaidAmount(cleaned);
+  };
+
+  const handlePaidFull = () => {
+    // re-enable auto-sync so "Full" keeps tracking the fee amount if it changes later
+    setPaidTouched(false);
+    setPaidAmount(String(feeValue));
+  };
+
+  const handlePaidZero = () => {
+    setPaidTouched(true);
+    setPaidAmount("0");
   };
 
   const handlePhotoChange = (e) => {
@@ -151,7 +186,8 @@ export default function AddMemberPage() {
       if (paymentMethod) formData.append("paymentMethod", paymentMethod);
       if (shift) formData.append("shift", shift);
       formData.append("admissionDate", admissionDate);
-      formData.append("status", status);
+      formData.append("status", computedStatus);
+      formData.append("dueDate", dueDate);
       formData.append("notes", notes);
       if (photo) formData.append("photo", photo);
       documents.forEach((doc) => formData.append("documents", doc));
@@ -335,19 +371,60 @@ export default function AddMemberPage() {
           <div className="mb-4 flex gap-3">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-medium text-gray-500">Paying Amount (₹)*</label>
-              <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
-                <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
-                  ₹
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={paidAmount}
-                  onChange={handlePaidChange}
-                  placeholder="Enter amount paying"
-                  className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                />
-              </div>
+
+              {isFree ? (
+                <div
+                  className="flex items-center rounded-lg border p-3 text-sm text-gray-500"
+                  style={{ borderColor: "#E5E1D8", background: "#F6F1E7" }}
+                >
+                  Free membership — nothing to collect
+                </div>
+              ) : (
+                <>
+                  {/* Zero / Full quick-select — Full is the default */}
+                  <div className="mb-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePaidZero}
+                      className="flex-1 rounded-lg px-3 py-2 text-xs font-medium transition"
+                      style={{
+                        background: isZeroSelected ? INK : "#FFFFFF",
+                        color: isZeroSelected ? "#FFFFFF" : "#6B7280",
+                        border: `1px solid ${isZeroSelected ? INK : "#E5E1D8"}`,
+                      }}
+                    >
+                      Zero
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePaidFull}
+                      className="flex-1 rounded-lg px-3 py-2 text-xs font-medium transition"
+                      style={{
+                        background: isFullSelected ? INK : "#FFFFFF",
+                        color: isFullSelected ? "#FFFFFF" : "#6B7280",
+                        border: `1px solid ${isFullSelected ? INK : "#E5E1D8"}`,
+                      }}
+                    >
+                      Full (₹{feeValue.toLocaleString("en-IN")})
+                    </button>
+                  </div>
+
+                  {/* Manual override for partial payments */}
+                  <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
+                    <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
+                      ₹
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={paidAmount}
+                      onChange={handlePaidChange}
+                      placeholder="Or enter a partial amount"
+                      className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+                </>
+              )}
             </div>
             <div className="w-36 shrink-0">
               <label className="mb-1 block text-xs font-medium text-gray-500">Payment Method</label>
@@ -368,7 +445,7 @@ export default function AddMemberPage() {
           </div>
 
           {/* Admission Date + Shift */}
-          <div className="mb-4 flex gap-3">
+          <div className="flex gap-3">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-medium text-gray-500">Admission Date*</label>
               <input
@@ -395,26 +472,6 @@ export default function AddMemberPage() {
                 ))}
               </select>
             </div>
-          </div>
-
-          <label className="mb-2 block text-xs font-medium text-gray-500">Status*</label>
-          <div className="flex gap-2">
-            {statusOptions.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setStatus(opt.value)}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition"
-                style={{
-                  background: status === opt.value ? `${opt.color}1A` : "#FFFFFF",
-                  color: status === opt.value ? opt.color : "#6B7280",
-                  border: `1px solid ${status === opt.value ? opt.color : "#E5E1D8"}`,
-                }}
-              >
-                <span style={{ color: opt.color }}>●</span>
-                {opt.label}
-              </button>
-            ))}
           </div>
         </section>
 
@@ -529,6 +586,16 @@ export default function AddMemberPage() {
             <p className="text-xs text-gray-400">Docs</p>
             <p className="font-semibold" style={{ color: INK }}>
               {documents.length} uploaded
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Status</p>
+            <p
+              className="flex items-center gap-1 font-semibold"
+              style={{ color: STATUS_COLORS[computedStatus] }}
+            >
+              <span>●</span>
+              {computedStatus === "active" ? "Active" : "Pending"}
             </p>
           </div>
         </div>

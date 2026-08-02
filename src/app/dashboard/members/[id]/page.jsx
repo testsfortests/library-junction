@@ -10,6 +10,7 @@ const BRASS = "#A9791F";
 const statusStyles = {
   active: { bg: "#E8F5EC", text: "#1E8E3E" },
   pending: { bg: "#FDF0E3", text: "#B7791F" },
+  review: { bg: "#EAF1FE", text: "#2563EB" },   
   inactive: { bg: "#F1F1F1", text: "#6B7280" },
 };
 

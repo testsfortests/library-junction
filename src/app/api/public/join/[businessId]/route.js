@@ -14,7 +14,6 @@ export async function POST(request, { params }) {
   try {
     const { businessId } = await params;
 
-    console.log("busiiii", businessId)
     const formData = await request.formData();
 
     const fullName = formData.get("fullName");
@@ -39,8 +38,6 @@ export async function POST(request, { params }) {
     if (!admin) {
       return NextResponse.json({ message: "This enrollment link is invalid." }, { status: 404 });
     }
-
-    console.log("Admini", admin)
 
     let photo = null;
     if (photoFile && photoFile.name) {

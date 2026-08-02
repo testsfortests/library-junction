@@ -10,6 +10,7 @@ const BRASS = "#A9791F";
 const statusStyles = {
   active: { bg: "#E8F5EC", text: "#1E8E3E" },
   pending: { bg: "#FDF0E3", text: "#B7791F" },
+  review: { bg: "#EAF1FE", text: "#2563EB" },
   inactive: { bg: "#F1F1F1", text: "#6B7280" },
 };
 
@@ -19,6 +20,8 @@ const feeTypeSuffix = {
   half_yearly: "/half-yr",
   yearly: "/yr",
 };
+
+const FILTERS = ["active", "pending", "review", "inactive"];
 
 function getInitials(name) {
   return (name || "")
@@ -34,17 +37,50 @@ function formatRupees(amount) {
 }
 
 function getCollected(member) {
-  return (member.payments || []).reduce((sum, p) => sum + p.amount, 0);
+  return (member.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+}
+
+function isSameMonth(dateInput) {
+  if (!dateInput) return false;
+  const d = new Date(dateInput);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
+function getCollectedThisMonth(member) {
+  return (member.payments || []).reduce((sum, p) => {
+    const paidOn = p.date || p.paidAt || p.createdAt;
+    if (isSameMonth(paidOn)) return sum + (p.amount || 0);
+    return sum;
+  }, 0);
+}
+
+function getDue(member) {
+  const fee = member.feeAmount || 0;
+  const collected = getCollected(member);
+  return Math.max(fee - collected, 0);
+}
+
+function formatDueDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return false;
+  return d < new Date();
 }
 
 export default function MembersPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("active");
   const [query, setQuery] = useState("");
-
-  const filters = ["all", "active", "pending", "inactive"];
 
   useEffect(() => {
     async function fetchMembers() {
@@ -70,7 +106,7 @@ export default function MembersPage() {
   }, []);
 
   const filteredMembers = useMemo(() => {
-    let result = filter === "all" ? members : members.filter((s) => s.status === filter);
+    let result = members.filter((s) => s.status === filter);
 
     const q = query.trim().toLowerCase();
     if (q) {
@@ -86,10 +122,25 @@ export default function MembersPage() {
     return result;
   }, [members, filter, query]);
 
-  const totalCollected = useMemo(
-    () => members.reduce((sum, s) => sum + getCollected(s), 0),
-    [members]
-  );
+  const stats = useMemo(() => {
+    const activeCount = members.filter((m) => m.status === "active").length;
+    const pendingCount = members.filter((m) => m.status === "pending").length;
+    const reviewCount = members.filter((m) => m.status === "review").length;
+
+    const totalCollected = members.reduce((sum, m) => sum + getCollected(m), 0);
+    const collectedThisMonth = members.reduce((sum, m) => sum + getCollectedThisMonth(m), 0);
+    const totalPendingCollection = members.reduce((sum, m) => sum + getDue(m), 0);
+
+    return {
+      total: members.length,
+      activeCount,
+      pendingCount,
+      reviewCount,
+      totalCollected,
+      collectedThisMonth,
+      totalPendingCollection,
+    };
+  }, [members]);
 
   return (
     <div>
@@ -112,18 +163,52 @@ export default function MembersPage() {
         </Link>
       </div>
 
-      {/* Summary cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4">
+      {/* Member status counts */}
+      <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-xs font-medium text-gray-400">Total Members</p>
           <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
-            {members.length}
+            {stats.total}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium text-gray-400">Active</p>
+          <p className="mt-1 text-2xl font-semibold" style={{ color: statusStyles.active.text }}>
+            {stats.activeCount}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium text-gray-400">Pending</p>
+          <p className="mt-1 text-2xl font-semibold" style={{ color: statusStyles.pending.text }}>
+            {stats.pendingCount}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium text-gray-400">Review</p>
+          <p className="mt-1 text-2xl font-semibold" style={{ color: statusStyles.review.text }}>
+            {stats.reviewCount}
+          </p>
+        </div>
+      </div>
+
+      {/* Collection stats */}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium text-gray-400">Collected This Month</p>
+          <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
+            {formatRupees(stats.collectedThisMonth)}
           </p>
         </div>
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-xs font-medium text-gray-400">Total Collected</p>
           <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
-            {formatRupees(totalCollected)}
+            {formatRupees(stats.totalCollected)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white p-5 shadow-sm">
+          <p className="text-xs font-medium text-gray-400">Pending Collection</p>
+          <p className="mt-1 text-2xl font-semibold" style={{ color: "#DC2626" }}>
+            {formatRupees(stats.totalPendingCollection)}
           </p>
         </div>
       </div>
@@ -142,20 +227,24 @@ export default function MembersPage() {
 
       {/* Filter tabs */}
       <div className="mb-4 flex gap-2 overflow-x-auto">
-        {filters.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition"
-            style={{
-              background: filter === f ? INK : "#FFFFFF",
-              color: filter === f ? "#FFFFFF" : "#6B7280",
-              border: filter === f ? "none" : "1px solid #E5E1D8",
-            }}
-          >
-            {f}
-          </button>
-        ))}
+        {FILTERS.map((f) => {
+          const isSelected = filter === f;
+          const style = statusStyles[f];
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium capitalize transition"
+              style={{
+                background: isSelected ? style.text : "#FFFFFF",
+                color: isSelected ? "#FFFFFF" : "#6B7280",
+                border: isSelected ? "none" : "1px solid #E5E1D8",
+              }}
+            >
+              {f}
+            </button>
+          );
+        })}
       </div>
 
       {/* Member list */}
@@ -175,8 +264,9 @@ export default function MembersPage() {
               const due = feeAmount - collected;
               const isFree = feeAmount === 0;
               const isPaid = isFree || due <= 0;
-              const badge = statusStyles[member.status];
               const suffix = feeTypeSuffix[member.feeType] || "/mo";
+              const dueDateLabel = formatDueDate(member.dueDate);
+              const overdue = !isPaid && isOverdue(member.dueDate);
 
               return (
                 <Link
@@ -214,18 +304,21 @@ export default function MembersPage() {
                           {member.memberId}
                         </span>
                       )}
-                      <span
-                        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize"
-                        style={{ background: badge.bg, color: badge.text }}
-                      >
-                        {member.status}
-                      </span>
                     </div>
                     <p className="truncate text-xs text-gray-400">
                       {member.mobile}
                       {member.email ? ` · ${member.email}` : ""} ·{" "}
                       {isFree ? "Free" : `${formatRupees(feeAmount)}${suffix}`}
                     </p>
+                    {dueDateLabel && (
+                      <p
+                        className="mt-0.5 text-xs font-medium"
+                        style={{ color: overdue ? "#DC2626" : "#9CA3AF" }}
+                      >
+                        {overdue ? "Overdue since " : "Next due "}
+                        {dueDateLabel}
+                      </p>
+                    )}
                   </div>
 
                   <div className="shrink-0 text-right">
@@ -242,9 +335,9 @@ export default function MembersPage() {
 
             {filteredMembers.length === 0 && (
               <div className="p-8 text-center text-sm text-gray-400">
-                {query || filter !== "all"
-                  ? "No members match your search or filter."
-                  : "No members enrolled yet."}
+                {query
+                  ? "No members match your search."
+                  : `No ${filter} members yet.`}
               </div>
             )}
           </div>

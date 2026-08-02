@@ -52,6 +52,8 @@ export async function POST(request) {
     const shift = VALID_SHIFTS.includes(shiftRaw) ? shiftRaw : undefined;
 
     const admissionDate = formData.get("admissionDate");
+    const dueDateRaw = formData.get("dueDate");        // ← add this line
+
     const status = formData.get("status");
     const notes = formData.get("notes") || "";
     const photoFile = formData.get("photo");
@@ -115,6 +117,7 @@ export async function POST(request) {
       ...(paymentMethod ? { paymentMethod } : {}),
       ...(shift ? { shift } : {}),
       admissionDate: new Date(admissionDate),
+      dueDate: dueDateRaw ? new Date(dueDateRaw) : undefined,   // ← add this line
       status,
       notes,
       payments,
