@@ -36,15 +36,18 @@ export async function POST(request) {
       mobile: admin.mobile,
       fullName: admin.fullName,
       businessName: admin.businessName,
-      role: admin.role || "admin", // 👈 new
+      role: admin.role || "admin",
     });
 
     const response = NextResponse.json({ success: true, message: "Login successful" });
+
+    // Matches the 10-year JWT expiry in lib/auth.js — effectively "permanent" login.
     response.cookies.set("auth-token", token, {
       httpOnly: true,
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 3650, // 10 years
       sameSite: "lax",
+      secure: process.env.NODE_ENV === "production", // required for cookies to survive over HTTPS (needed for Play Store / WebView)
     });
 
     return response;

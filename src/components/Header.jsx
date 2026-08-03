@@ -57,13 +57,13 @@ export default function Header() {
           <Menu size={22} />
         </button>
 
-        <div className="flex items-center gap-2">
-          <Building2 size={20} color={colors.primary} />
+        <div className="flex min-w-0 items-center gap-2 px-2">
+          <Building2 size={20} color={colors.primary} className="shrink-0" />
           <span
-            className="text-xs font-bold uppercase tracking-[0.15em] sm:text-sm"
+            className="max-w-[55vw] truncate text-xs font-bold uppercase tracking-[0.15em] sm:max-w-xs sm:text-sm"
             style={{ color: colors.text }}
           >
-            Member Junction
+            {admin?.businessName || "Member Junction"}
           </span>
         </div>
 

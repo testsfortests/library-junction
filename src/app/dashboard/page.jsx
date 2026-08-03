@@ -235,9 +235,9 @@ export default function DashboardHome() {
           Welcome {admin?.fullName ? admin.fullName : "Admin"} 👋
         </h1>
 
-        <p className="mt-1 text-sm text-gray-500">
+        {/* <p className="mt-1 text-sm text-gray-500">
           {admin?.businessName || "Your Business"}
-        </p>
+        </p> */}
       </div>
 
       {/* Member status counts */}

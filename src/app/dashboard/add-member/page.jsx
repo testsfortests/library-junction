@@ -368,52 +368,31 @@ export default function AddMemberPage() {
           </div>
 
           {/* Paying Amount + Payment Method */}
-          <div className="mb-4 flex gap-3">
+          <div className="mb-2 flex gap-3">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-medium text-gray-500">Paying Amount (₹)*</label>
 
               {isFree ? (
                 <div
-                  className="flex items-center rounded-lg border p-3 text-sm text-gray-500"
+                  className="flex items-center rounded-lg border p-3 text-xs text-gray-500"
                   style={{ borderColor: "#E5E1D8", background: "#F6F1E7" }}
                 >
-                  Free membership — nothing to collect
+                  Free membership
                 </div>
               ) : (
-                <>
-                  <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
-                    <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
-                      ₹
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={paidAmount}
-                      onChange={handlePaidChange}
-                      placeholder="Enter amount paying"
-                      className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                    />
-                  </div>
-
-                  {/* Quick-select paying amount presets */}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {paidPresets.map((preset) => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => handlePaidPreset(preset.value)}
-                        className="rounded-full px-3 py-1.5 text-xs font-medium transition"
-                        style={{
-                          background: paidValue === preset.value ? INK : "#FFFFFF",
-                          color: paidValue === preset.value ? "#FFFFFF" : "#6B7280",
-                          border: `1px solid ${paidValue === preset.value ? INK : "#E5E1D8"}`,
-                        }}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
+                  <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
+                    ₹
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={paidAmount}
+                    onChange={handlePaidChange}
+                    placeholder="Enter amount paying"
+                    className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                  />
+                </div>
               )}
             </div>
             <div className="w-36 shrink-0">
@@ -433,6 +412,28 @@ export default function AddMemberPage() {
               </select>
             </div>
           </div>
+
+          {/* Quick-select paying amount presets — kept full width (outside the flex-1 column above),
+              so it gets the same available width as the fee presets and lines up in one row on mobile. */}
+          {!isFree && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {paidPresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => handlePaidPreset(preset.value)}
+                  className="rounded-full px-3 py-1.5 text-xs font-medium transition"
+                  style={{
+                    background: paidValue === preset.value ? INK : "#FFFFFF",
+                    color: paidValue === preset.value ? "#FFFFFF" : "#6B7280",
+                    border: `1px solid ${paidValue === preset.value ? INK : "#E5E1D8"}`,
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Admission Date + Shift */}
           <div className="flex gap-3">
