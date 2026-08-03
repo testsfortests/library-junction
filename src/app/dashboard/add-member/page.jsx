@@ -17,6 +17,14 @@ const feePresets = [
   { label: "₹2000", value: 2000 },
 ];
 
+const paidPresets = [
+  { label: "Zero", value: 0 },
+  { label: "₹500", value: 500 },
+  { label: "₹1000", value: 1000 },
+  { label: "₹1500", value: 1500 },
+  { label: "₹2000", value: 2000 },
+];
+
 const feeTypeOptions = [
   { value: "monthly", label: "Monthly", suffix: "/mo", months: 1 },
   { value: "quarterly", label: "Quarterly", suffix: "/qtr", months: 3 },
@@ -81,7 +89,7 @@ export default function AddMemberPage() {
   const [feeAmount, setFeeAmount] = useState("1000");
 
   const [paidAmount, setPaidAmount] = useState("1000");
-  const [paidTouched, setPaidTouched] = useState(false); // once admin picks "Zero" or edits paidAmount manually, stop auto-syncing it to fee amount
+  const [paidTouched, setPaidTouched] = useState(false); // once admin picks a preset or edits paidAmount manually, stop auto-syncing it to fee amount
 
   const [paymentMethod, setPaymentMethod] = useState(""); // optional, "" = not specified
   const [shift, setShift] = useState(""); // optional, "" = not specified
@@ -106,8 +114,6 @@ export default function AddMemberPage() {
   const dueDate = addMonthsToDateStr(admissionDate, activeFeeType.months);
 
   const isFree = feeValue === 0;
-  const isFullSelected = !isFree && paidValue === feeValue;
-  const isZeroSelected = !isFree && paidValue === 0;
 
   const handleFeeChange = (e) => {
     // strip non-digits and leading zeros (e.g. "0200" -> "200"), allow empty while typing
@@ -129,15 +135,9 @@ export default function AddMemberPage() {
     setPaidAmount(cleaned);
   };
 
-  const handlePaidFull = () => {
-    // re-enable auto-sync so "Full" keeps tracking the fee amount if it changes later
-    setPaidTouched(false);
-    setPaidAmount(String(feeValue));
-  };
-
-  const handlePaidZero = () => {
+  const handlePaidPreset = (value) => {
     setPaidTouched(true);
-    setPaidAmount("0");
+    setPaidAmount(String(value));
   };
 
   const handlePhotoChange = (e) => {
@@ -381,35 +381,6 @@ export default function AddMemberPage() {
                 </div>
               ) : (
                 <>
-                  {/* Zero / Full quick-select — Full is the default */}
-                  <div className="mb-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePaidZero}
-                      className="flex-1 rounded-lg px-3 py-2 text-xs font-medium transition"
-                      style={{
-                        background: isZeroSelected ? INK : "#FFFFFF",
-                        color: isZeroSelected ? "#FFFFFF" : "#6B7280",
-                        border: `1px solid ${isZeroSelected ? INK : "#E5E1D8"}`,
-                      }}
-                    >
-                      Zero
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handlePaidFull}
-                      className="flex-1 rounded-lg px-3 py-2 text-xs font-medium transition"
-                      style={{
-                        background: isFullSelected ? INK : "#FFFFFF",
-                        color: isFullSelected ? "#FFFFFF" : "#6B7280",
-                        border: `1px solid ${isFullSelected ? INK : "#E5E1D8"}`,
-                      }}
-                    >
-                      Full (₹{feeValue.toLocaleString("en-IN")})
-                    </button>
-                  </div>
-
-                  {/* Manual override for partial payments */}
                   <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "#E5E1D8" }}>
                     <span className="flex items-center px-3 text-sm text-gray-500" style={{ background: "#F6F1E7" }}>
                       ₹
@@ -419,9 +390,28 @@ export default function AddMemberPage() {
                       inputMode="numeric"
                       value={paidAmount}
                       onChange={handlePaidChange}
-                      placeholder="Or enter a partial amount"
+                      placeholder="Enter amount paying"
                       className="w-full p-3 text-sm text-gray-900 outline-none placeholder:text-gray-400"
                     />
+                  </div>
+
+                  {/* Quick-select paying amount presets */}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {paidPresets.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => handlePaidPreset(preset.value)}
+                        className="rounded-full px-3 py-1.5 text-xs font-medium transition"
+                        style={{
+                          background: paidValue === preset.value ? INK : "#FFFFFF",
+                          color: paidValue === preset.value ? "#FFFFFF" : "#6B7280",
+                          border: `1px solid ${paidValue === preset.value ? INK : "#E5E1D8"}`,
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
                   </div>
                 </>
               )}
@@ -580,12 +570,6 @@ export default function AddMemberPage() {
             <p className="text-xs text-gray-400">From</p>
             <p className="font-semibold" style={{ color: INK }}>
               {formatDisplayDate(admissionDate)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Docs</p>
-            <p className="font-semibold" style={{ color: INK }}>
-              {documents.length} uploaded
             </p>
           </div>
           <div>

@@ -7,6 +7,13 @@ import { Loader2 } from "lucide-react";
 const INK = "#1C2541";
 const BRASS = "#A9791F";
 
+const statusStyles = {
+  active: { bg: "#E8F5EC", text: "#1E8E3E" },
+  pending: { bg: "#FDF0E3", text: "#B7791F" },
+  review: { bg: "#EAF1FE", text: "#2563EB" },
+  inactive: { bg: "#F1F1F1", text: "#6B7280" },
+};
+
 function getInitials(name) {
   return (name || "")
     .split(" ")
@@ -21,24 +28,113 @@ function formatRupees(amount) {
 }
 
 function getCollected(member) {
-  return (member.payments || []).reduce((sum, p) => sum + p.amount, 0);
+  return (member.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
 }
 
+function isSameMonth(dateInput) {
+  if (!dateInput) return false;
+  const d = new Date(dateInput);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
+function getCollectedThisMonth(member) {
+  return (member.payments || []).reduce((sum, p) => {
+    const paidOn = p.date || p.paidAt || p.createdAt;
+    if (isSameMonth(paidOn)) return sum + (p.amount || 0);
+    return sum;
+  }, 0);
+}
+
+function getDue(member) {
+  const fee = member.feeAmount || 0;
+  const collected = getCollected(member);
+  return Math.max(fee - collected, 0);
+}
+
+// Positive = days overdue, negative = days until due
 function daysOverdue(dueDate) {
-  if (!dueDate) return 0;
+  if (!dueDate) return null;
   const diffMs = new Date() - new Date(dueDate);
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
-function StatCard({ label, value, sublabel }) {
+function formatDueDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function StatCard({ label, value, color }) {
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm">
-      <p className="text-xs font-medium text-gray-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
+    <div className="min-w-0 rounded-xl bg-white p-2.5 shadow-sm sm:p-5">
+      <p className="truncate text-[10px] font-medium text-gray-400 sm:text-xs">{label}</p>
+      <p
+        className="mt-1 truncate text-base font-semibold sm:text-2xl"
+        style={{ color: color || INK }}
+      >
         {value}
       </p>
-      {sublabel && <p className="mt-0.5 text-xs text-gray-400">{sublabel}</p>}
     </div>
+  );
+}
+
+function MemberDueRow({ member }) {
+  const overdue = daysOverdue(member.dueDate);
+  const isOverdue = overdue >= 0;
+
+  return (
+    <Link
+      href={`/dashboard/members/${member._id}`}
+      className="flex items-center gap-3 py-3"
+      style={{ borderColor: "#F0EDE5" }}
+    >
+      {/* Avatar — photo if available, initials otherwise */}
+      {member.photo?.url ? (
+        <img
+          src={member.photo.url}
+          alt={member.fullName}
+          className="h-10 w-10 shrink-0 rounded-full object-cover"
+          style={{ border: `1.5px solid ${BRASS}` }}
+        />
+      ) : (
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+          style={{ background: BRASS }}
+        >
+          {getInitials(member.fullName)}
+        </div>
+      )}
+
+      {/* Name + phone */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-medium" style={{ color: INK }}>
+            {member.fullName}
+          </p>
+          {member.memberId && (
+            <span
+              className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              style={{ background: "#F6F1E7", color: BRASS }}
+            >
+              {member.memberId}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-400">{member.mobile}</p>
+      </div>
+
+      {/* Overdue / due-in info */}
+      <div className="shrink-0 text-right">
+        <p className="text-xs font-semibold" style={{ color: isOverdue ? "#DC2626" : "#B7791F" }}>
+          {isOverdue ? `${overdue}d overdue` : `Due in ${Math.abs(overdue)}d`}
+        </p>
+        <p className="text-xs text-gray-400">{formatDueDate(member.dueDate)}</p>
+      </div>
+    </Link>
   );
 }
 
@@ -77,33 +173,43 @@ export default function DashboardHome() {
   }, []);
 
   const stats = useMemo(() => {
-    const totalMembers = members.length;
-    const activeMembers = members.filter((m) => m.status === "active").length;
+    const activeCount = members.filter((m) => m.status === "active").length;
+    const pendingCount = members.filter((m) => m.status === "pending").length;
+    const reviewCount = members.filter((m) => m.status === "review").length;
 
-    let collected = 0;
-    let pending = 0;
+    const totalCollected = members.reduce((sum, m) => sum + getCollected(m), 0);
+    const collectedThisMonth = members.reduce((sum, m) => sum + getCollectedThisMonth(m), 0);
+    const totalPendingCollection = members.reduce((sum, m) => sum + getDue(m), 0);
 
-    members.forEach((m) => {
-      const paid = getCollected(m);
-      collected += paid;
-      if (m.monthlyFee > 0) {
-        const due = m.monthlyFee - paid;
-        if (due > 0) pending += due;
-      }
-    });
-
-    return { totalMembers, activeMembers, collected, pending };
+    return {
+      total: activeCount + pendingCount + reviewCount, // excludes inactive
+      activeCount,
+      pendingCount,
+      reviewCount,
+      totalCollected,
+      collectedThisMonth,
+      totalPendingCollection,
+    };
   }, [members]);
 
-  // Fee due alerts: overdue, or due within the next 4 days — excludes free & fully paid members
-  const feeAlerts = useMemo(() => {
+  // Pending members whose dues are already overdue
+  const overdueMembers = useMemo(() => {
     return members
       .filter((m) => {
-        if (!m.dueDate || m.monthlyFee === 0) return false;
-        const due = m.monthlyFee - getCollected(m);
-        if (due <= 0) return false;
+        if (m.status !== "pending" || !m.dueDate) return false;
         const overdue = daysOverdue(m.dueDate);
-        return overdue >= -4; // overdue now, or due within 4 days
+        return overdue !== null && overdue >= 0;
+      })
+      .sort((a, b) => daysOverdue(b.dueDate) - daysOverdue(a.dueDate));
+  }, [members]);
+
+  // Pending members whose dues are coming up within the next 4 days
+  const dueSoonMembers = useMemo(() => {
+    return members
+      .filter((m) => {
+        if (m.status !== "pending" || !m.dueDate) return false;
+        const overdue = daysOverdue(m.dueDate);
+        return overdue !== null && overdue >= -4 && overdue < 0;
       })
       .sort((a, b) => daysOverdue(b.dueDate) - daysOverdue(a.dueDate));
   }, [members]);
@@ -134,80 +240,57 @@ export default function DashboardHome() {
         </p>
       </div>
 
-      {/* Stat cards */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Active" value={stats.activeMembers} sublabel="Total Members" />
-        <StatCard label="Total Members" value={stats.totalMembers} />
-        <StatCard label="Collected" value={formatRupees(stats.collected)} />
-        <StatCard label="Pending" value={formatRupees(stats.pending)} />
+      {/* Member status counts */}
+      <div className="mb-4 grid grid-cols-4 gap-2 sm:gap-4">
+        <StatCard label="Total Members" value={stats.total} />
+        <StatCard label="Active" value={stats.activeCount} color={statusStyles.active.text} />
+        <StatCard label="Pending" value={stats.pendingCount} color={statusStyles.pending.text} />
+        <StatCard label="Review" value={stats.reviewCount} color={statusStyles.review.text} />
       </div>
 
-      {/* Fee Due Alerts */}
+      {/* Collection stats */}
+      <div className="mb-8 grid grid-cols-3 gap-2 sm:gap-4">
+        <StatCard label="Collected This Month" value={formatRupees(stats.collectedThisMonth)} />
+        <StatCard label="Total Collected" value={formatRupees(stats.totalCollected)} />
+        <StatCard label="Pending Collection" value={formatRupees(stats.totalPendingCollection)} color="#DC2626" />
+      </div>
+
+      {/* Overdue + Due Soon */}
       <div className="rounded-xl bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold" style={{ color: INK }}>
-          Fee Due Alerts
+          Overdue + Due Soon
         </h2>
-        <p className="mb-4 text-xs text-gray-400">Overdue & due within 4 days</p>
+        <p className="mb-4 text-xs text-gray-400">Pending members needing follow-up</p>
 
-        {feeAlerts.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-400">No fee alerts right now 🎉</p>
+        {/* Overdue */}
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "#DC2626" }}>
+          Overdue
+        </h3>
+        {overdueMembers.length === 0 ? (
+          <p className="mb-5 rounded-lg py-4 text-center text-sm text-gray-400" style={{ background: "#F6F1E7" }}>
+            No overdue
+          </p>
+        ) : (
+          <div className="mb-5 divide-y" style={{ borderColor: "#F0EDE5" }}>
+            {overdueMembers.map((member) => (
+              <MemberDueRow key={member._id} member={member} />
+            ))}
+          </div>
+        )}
+
+        {/* Due within 4 days */}
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "#B7791F" }}>
+          Due Within 4 Days
+        </h3>
+        {dueSoonMembers.length === 0 ? (
+          <p className="rounded-lg py-4 text-center text-sm text-gray-400" style={{ background: "#F6F1E7" }}>
+            No members due soon
+          </p>
         ) : (
           <div className="divide-y" style={{ borderColor: "#F0EDE5" }}>
-            {feeAlerts.map((member) => {
-              const overdue = daysOverdue(member.dueDate);
-              const isOverdue = overdue >= 0;
-
-              return (
-                <Link
-                  key={member._id}
-                  href={`/dashboard/members/${member._id}`}
-                  className="flex items-center gap-3 py-3"
-                  style={{ borderColor: "#F0EDE5" }}
-                >
-                  {/* Avatar — photo if available, initials otherwise */}
-                  {member.photo?.url ? (
-                    <img
-                      src={member.photo.url}
-                      alt={member.fullName}
-                      className="h-10 w-10 shrink-0 rounded-full object-cover"
-                      style={{ border: `1.5px solid ${BRASS}` }}
-                    />
-                  ) : (
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                      style={{ background: BRASS }}
-                    >
-                      {getInitials(member.fullName)}
-                    </div>
-                  )}
-
-                  {/* Name + phone */}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium" style={{ color: INK }}>
-                      {member.fullName}
-                    </p>
-                    <p className="text-xs text-gray-400">{member.mobile}</p>
-                  </div>
-
-                  {/* Overdue info */}
-                  <div className="shrink-0 text-right">
-                    <p
-                      className="text-xs font-semibold"
-                      style={{ color: isOverdue ? "#DC2626" : "#B7791F" }}
-                    >
-                      {isOverdue ? `${overdue}d overdue` : `Due in ${Math.abs(overdue)}d`}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {new Date(member.dueDate).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
+            {dueSoonMembers.map((member) => (
+              <MemberDueRow key={member._id} member={member} />
+            ))}
           </div>
         )}
       </div>

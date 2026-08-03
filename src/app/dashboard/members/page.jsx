@@ -40,27 +40,6 @@ function getCollected(member) {
   return (member.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
 }
 
-function isSameMonth(dateInput) {
-  if (!dateInput) return false;
-  const d = new Date(dateInput);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-}
-
-function getCollectedThisMonth(member) {
-  return (member.payments || []).reduce((sum, p) => {
-    const paidOn = p.date || p.paidAt || p.createdAt;
-    if (isSameMonth(paidOn)) return sum + (p.amount || 0);
-    return sum;
-  }, 0);
-}
-
-function getDue(member) {
-  const fee = member.feeAmount || 0;
-  const collected = getCollected(member);
-  return Math.max(fee - collected, 0);
-}
-
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -122,26 +101,6 @@ export default function MembersPage() {
     return result;
   }, [members, filter, query]);
 
-  const stats = useMemo(() => {
-    const activeCount = members.filter((m) => m.status === "active").length;
-    const pendingCount = members.filter((m) => m.status === "pending").length;
-    const reviewCount = members.filter((m) => m.status === "review").length;
-
-    const totalCollected = members.reduce((sum, m) => sum + getCollected(m), 0);
-    const collectedThisMonth = members.reduce((sum, m) => sum + getCollectedThisMonth(m), 0);
-    const totalPendingCollection = members.reduce((sum, m) => sum + getDue(m), 0);
-
-    return {
-      total: members.length,
-      activeCount,
-      pendingCount,
-      reviewCount,
-      totalCollected,
-      collectedThisMonth,
-      totalPendingCollection,
-    };
-  }, [members]);
-
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -161,56 +120,6 @@ export default function MembersPage() {
           <Plus size={16} />
           Add
         </Link>
-      </div>
-
-      {/* Member status counts */}
-      <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Total Members</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
-            {stats.total}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Active</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: statusStyles.active.text }}>
-            {stats.activeCount}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Pending</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: statusStyles.pending.text }}>
-            {stats.pendingCount}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Review</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: statusStyles.review.text }}>
-            {stats.reviewCount}
-          </p>
-        </div>
-      </div>
-
-      {/* Collection stats */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Collected This Month</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
-            {formatRupees(stats.collectedThisMonth)}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Total Collected</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: INK }}>
-            {formatRupees(stats.totalCollected)}
-          </p>
-        </div>
-        <div className="rounded-xl bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-gray-400">Pending Collection</p>
-          <p className="mt-1 text-2xl font-semibold" style={{ color: "#DC2626" }}>
-            {formatRupees(stats.totalPendingCollection)}
-          </p>
-        </div>
       </div>
 
       {/* Search bar */}
