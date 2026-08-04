@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck } from "lucide-react";
+import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck, Info } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
 function getInitials(name) {
@@ -13,6 +13,19 @@ function getInitials(name) {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+// Trial badge: 7 days after the admin account was created
+function getTrialExpiry(createdAt) {
+  if (!createdAt) return null;
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + 7);
+  return d;
+}
+
+function formatShortDate(d) {
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export default function Header() {
@@ -36,6 +49,7 @@ export default function Header() {
 
   const displayName = admin?.fullName || "Admin";
   const isOwner = admin?.role === "owner";
+  const trialExpiry = getTrialExpiry(admin?.createdAt);
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
@@ -63,7 +77,7 @@ export default function Header() {
             className="max-w-[55vw] truncate text-xs font-bold uppercase tracking-[0.15em] sm:max-w-xs sm:text-sm"
             style={{ color: colors.text }}
           >
-            {admin?.businessName || "Member Junction"}
+            {admin?.businessName || "Member Mate"}
           </span>
         </div>
 
@@ -106,6 +120,14 @@ export default function Header() {
               <p className="text-xs" style={{ color: colors.textMuted }}>
                 {admin?.businessName || "Admin"}
               </p>
+              {trialExpiry && (
+                <span
+                  className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style={{ background: "#FDF0E3", color: "#B7791F" }}
+                >
+                  Free · Expires {formatShortDate(trialExpiry)}
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -172,6 +194,16 @@ export default function Header() {
               />
             </button>
           </div>
+
+          <Link
+            href="/dashboard/about-developer"
+            onClick={() => setDrawerOpen(false)}
+            className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium"
+            style={{ color: colors.text }}
+          >
+            <Info size={18} />
+            About Developer
+          </Link>
 
           <button
             onClick={handleLogout}

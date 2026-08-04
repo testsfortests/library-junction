@@ -54,6 +54,19 @@ function isOverdue(dateStr) {
   return d < new Date();
 }
 
+// Prefer createdAt (when the member record was added); fall back to admissionDate
+// if createdAt isn't present on the document.
+function getAddedTime(member) {
+  const raw = member.createdAt || member.admissionDate;
+  const t = raw ? new Date(raw).getTime() : 0;
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function getDueTime(member) {
+  const t = member.dueDate ? new Date(member.dueDate).getTime() : Infinity;
+  return Number.isNaN(t) ? Infinity : t;
+}
+
 export default function MembersPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +114,100 @@ export default function MembersPage() {
     return result;
   }, [members, filter, query]);
 
+  // For the "pending" tab: split into an Overdue group (oldest due date — i.e. most
+  // days overdue — first) and a Pending group (most recently added member first).
+  const { overdueMembers, pendingOnlyMembers } = useMemo(() => {
+    if (filter !== "pending") return { overdueMembers: [], pendingOnlyMembers: [] };
+
+    const overdue = [];
+    const pendingOnly = [];
+
+    filteredMembers.forEach((m) => {
+      if (isOverdue(m.dueDate)) overdue.push(m);
+      else pendingOnly.push(m);
+    });
+
+    overdue.sort((a, b) => getDueTime(a) - getDueTime(b)); // oldest due date (most overdue) first
+    pendingOnly.sort((a, b) => getAddedTime(b) - getAddedTime(a)); // most recently added first
+
+    return { overdueMembers: overdue, pendingOnlyMembers: pendingOnly };
+  }, [filteredMembers, filter]);
+
+  const renderMemberRow = (member) => {
+    const collected = getCollected(member);
+    const hasFee = member.feeAmount !== null && member.feeAmount !== undefined;
+    const feeAmount = hasFee ? member.feeAmount : 0;
+    const due = feeAmount - collected;
+    const isFree = hasFee && feeAmount === 0;
+    const isPaid = isFree || due <= 0;
+
+    const suffix = feeTypeSuffix[member.feeType] || "/mo";
+    const dueDateLabel = formatDueDate(member.dueDate);
+    const overdue = !isPaid && isOverdue(member.dueDate);
+
+    return (
+      <Link
+        key={member._id}
+        href={`/dashboard/members/${member._id}`}
+        className="flex items-center gap-3 p-4 transition hover:bg-gray-50"
+      >
+        {/* Avatar — photo if available, initials otherwise */}
+        {member.photo?.url ? (
+          <img
+            src={member.photo.url}
+            alt={member.fullName}
+            className="h-10 w-10 shrink-0 rounded-full object-cover"
+            style={{ border: `1.5px solid ${BRASS}` }}
+          />
+        ) : (
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+            style={{ background: BRASS }}
+          >
+            {getInitials(member.fullName)}
+          </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium" style={{ color: INK }}>
+              {member.fullName}
+            </p>
+            {member.memberId && (
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={{ background: "#F6F1E7", color: BRASS }}
+              >
+                {member.memberId}
+              </span>
+            )}
+          </div>
+          <p className="truncate text-xs text-gray-400">
+            {member.mobile} · {!hasFee ? "Awaiting fee" : isFree ? "Free" : `${formatRupees(feeAmount)}${suffix}`}
+          </p>
+          {dueDateLabel && (
+            <p
+              className="mt-0.5 text-xs font-medium"
+              style={{ color: overdue ? "#DC2626" : "#9CA3AF" }}
+            >
+              {overdue ? "Overdue since " : "Next due "}
+              {dueDateLabel}
+            </p>
+          )}
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p className="text-sm font-semibold" style={{ color: INK }}>
+            {!hasFee || isFree ? "—" : formatRupees(collected)}
+          </p>
+          <p className="text-xs font-medium" style={{ color: !hasFee ? "#2563EB" : isPaid ? "#1E8E3E" : "#DC2626" }}>
+            {!hasFee ? "Review" : isFree ? "Free" : isPaid ? "✓ Paid" : `${formatRupees(due)} due`}
+          </p>
+        </div>
+      </Link>
+    );
+  };
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -129,7 +236,7 @@ export default function MembersPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, email, mobile, or member ID"
+          placeholder="Search by name, mobile, or member ID"
           className="w-full text-sm text-gray-900 outline-none placeholder:text-gray-400"
         />
       </div>
@@ -165,88 +272,49 @@ export default function MembersPage() {
           </div>
         ) : error ? (
           <div className="p-8 text-center text-sm text-red-500">{error}</div>
+        ) : filter === "pending" ? (
+          <>
+            {overdueMembers.length > 0 && (
+              <div>
+                <p
+                  className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wide"
+                  style={{ color: "#DC2626" }}
+                >
+                  Overdue
+                </p>
+                <div className="divide-y" style={{ borderColor: "#F0EDE5" }}>
+                  {overdueMembers.map(renderMemberRow)}
+                </div>
+              </div>
+            )}
+
+            {pendingOnlyMembers.length > 0 && (
+              <div>
+                <p
+                  className="px-4 pt-3 pb-1 text-xs font-bold uppercase tracking-wide"
+                  style={{ color: "#B7791F" }}
+                >
+                  Pending
+                </p>
+                <div className="divide-y" style={{ borderColor: "#F0EDE5" }}>
+                  {pendingOnlyMembers.map(renderMemberRow)}
+                </div>
+              </div>
+            )}
+
+            {overdueMembers.length === 0 && pendingOnlyMembers.length === 0 && (
+              <div className="p-8 text-center text-sm text-gray-400">
+                {query ? "No members match your search." : "No pending members yet."}
+              </div>
+            )}
+          </>
         ) : (
           <div className="divide-y" style={{ borderColor: "#F0EDE5" }}>
-            {filteredMembers.map((member) => {
-              const collected = getCollected(member);
-              const feeAmount = member.feeAmount || 0;
-              const due = feeAmount - collected;
-              const isFree = feeAmount === 0;
-              const isPaid = isFree || due <= 0;
-              const suffix = feeTypeSuffix[member.feeType] || "/mo";
-              const dueDateLabel = formatDueDate(member.dueDate);
-              const overdue = !isPaid && isOverdue(member.dueDate);
-
-              return (
-                <Link
-                  key={member._id}
-                  href={`/dashboard/members/${member._id}`}
-                  className="flex items-center gap-3 p-4 transition hover:bg-gray-50"
-                >
-                  {/* Avatar — photo if available, initials otherwise */}
-                  {member.photo?.url ? (
-                    <img
-                      src={member.photo.url}
-                      alt={member.fullName}
-                      className="h-10 w-10 shrink-0 rounded-full object-cover"
-                      style={{ border: `1.5px solid ${BRASS}` }}
-                    />
-                  ) : (
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-                      style={{ background: BRASS }}
-                    >
-                      {getInitials(member.fullName)}
-                    </div>
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium" style={{ color: INK }}>
-                        {member.fullName}
-                      </p>
-                      {member.memberId && (
-                        <span
-                          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                          style={{ background: "#F6F1E7", color: BRASS }}
-                        >
-                          {member.memberId}
-                        </span>
-                      )}
-                    </div>
-                    <p className="truncate text-xs text-gray-400">
-                      {member.mobile}
-                      {member.email ? ` · ${member.email}` : ""} ·{" "}
-                      {isFree ? "Free" : `${formatRupees(feeAmount)}${suffix}`}
-                    </p>
-                    {dueDateLabel && (
-                      <p
-                        className="mt-0.5 text-xs font-medium"
-                        style={{ color: overdue ? "#DC2626" : "#9CA3AF" }}
-                      >
-                        {overdue ? "Overdue since " : "Next due "}
-                        {dueDateLabel}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold" style={{ color: INK }}>
-                      {isFree ? "—" : formatRupees(collected)}
-                    </p>
-                    <p className="text-xs font-medium" style={{ color: isPaid ? "#1E8E3E" : "#DC2626" }}>
-                      {isFree ? "Free" : isPaid ? "✓ Paid" : `${formatRupees(due)} due`}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
+            {filteredMembers.map(renderMemberRow)}
 
             {filteredMembers.length === 0 && (
               <div className="p-8 text-center text-sm text-gray-400">
-                {query
-                  ? "No members match your search."
-                  : `No ${filter} members yet.`}
+                {query ? "No members match your search." : `No ${filter} members yet.`}
               </div>
             )}
           </div>

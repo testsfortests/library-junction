@@ -81,7 +81,7 @@ export default function Login() {
               className="text-2xl font-bold tracking-[0.08em]"
               style={{ fontFamily: "var(--font-display)", color: INK }}
             >
-              MEMBER JUNCTION
+              MEMBER MATE
             </h1>
           </div>
 
@@ -114,7 +114,7 @@ export default function Login() {
             <label className="mb-1 block text-xs font-medium" style={{ color: TEXT_MUTED }}>
               Password
             </label>
-            <div className="relative mb-4">
+            <div className="relative mb-2">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
@@ -133,6 +133,12 @@ export default function Login() {
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
+            </div>
+
+            <div className="mb-4 text-right">
+              <Link href="/forgot-password" className="text-xs font-medium hover:underline" style={{ color: BRASS }}>
+                Forgot password?
+              </Link>
             </div>
 
             <button

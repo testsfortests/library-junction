@@ -101,7 +101,7 @@ export default function Signup() {
               className="text-2xl font-bold tracking-[0.08em]"
               style={{ fontFamily: "var(--font-display)", color: INK }}
             >
-              MEMBER JUNCTION
+              MEMBER MATE
             </h1>
             <p className="mt-1 text-sm" style={{ color: TEXT_MUTED }}>
               Create your admin account

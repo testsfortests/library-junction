@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Member Junction",
-  description: "Member Junction App",
+  title: "Member Mate",
+  description: "Member Mate App",
 };
 
 export default function RootLayout({ children }) {

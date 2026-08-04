@@ -3,61 +3,18 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-
-const INK = "#1C2541";
-const BRASS = "#A9791F";
-
-const statusStyles = {
-  active: { bg: "#E8F5EC", text: "#1E8E3E" },
-  pending: { bg: "#FDF0E3", text: "#B7791F" },
-  review: { bg: "#EAF1FE", text: "#2563EB" },   
-  inactive: { bg: "#F1F1F1", text: "#6B7280" },
-};
-
-const feeTypeOptions = [
-  { value: "monthly", label: "Monthly", suffix: "/mo" },
-  { value: "quarterly", label: "Quarterly", suffix: "/qtr" },
-  { value: "half_yearly", label: "Half Yearly", suffix: "/half-yr" },
-  { value: "yearly", label: "Yearly", suffix: "/yr" },
-];
-
-const shiftLabels = {
-  morning: "Morning",
-  afternoon: "Afternoon",
-  evening: "Evening",
-  full_day: "Full Day",
-};
-
-const paymentMethodLabels = {
-  cash: "Cash",
-  online: "Online",
-};
-
-function getInitials(name) {
-  return (name || "")
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
-function formatRupees(amount) {
-  return `₹${(amount || 0).toLocaleString("en-IN")}`;
-}
-
-function formatDisplayDate(dateStr) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function feeSuffix(feeType) {
-  return feeTypeOptions.find((f) => f.value === feeType)?.suffix || "/mo";
-}
+import ApprovePanel from "./ApprovePanel";
+import {
+  INK,
+  BRASS,
+  statusStyles,
+  shiftLabels,
+  paymentMethodLabels,
+  getInitials,
+  formatRupees,
+  formatDisplayDate,
+  feeSuffix,
+} from "@/lib/memberConstants";
 
 export default function MemberDetailPage() {
   const { id } = useParams();
@@ -458,107 +415,6 @@ export default function MemberDetailPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function ApprovePanel({ member, onApproved }) {
-  const [feeType, setFeeType] = useState("monthly");
-  const [feeAmount, setFeeAmount] = useState("1000");
-  const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().split("T")[0]);
-  const [approving, setApproving] = useState(false);
-  const [approveError, setApproveError] = useState("");
-
-  const handleApprove = async () => {
-    setApproveError("");
-    if (feeAmount === "" || Number(feeAmount) < 0) {
-      setApproveError("Enter a valid fee amount (0 for free).");
-      return;
-    }
-
-    setApproving(true);
-    try {
-      const res = await fetch(`/api/members/${member._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          feeType,
-          feeAmount: Number(feeAmount),
-          admissionDate,
-          status: "active",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to approve member");
-
-      onApproved(data.member);
-    } catch (err) {
-      setApproveError(err.message || "Something went wrong.");
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  return (
-    <div className="mb-6 rounded-xl p-5 shadow-sm" style={{ background: "#FDF0E3" }}>
-      <h2 className="mb-1 text-sm font-semibold" style={{ color: INK }}>
-        New enrollment — needs review
-      </h2>
-      <p className="mb-4 text-xs" style={{ color: "#B7791F" }}>
-        Set their fee and start date to activate this member.
-      </p>
-
-      {approveError && (
-        <p className="mb-3 rounded-lg bg-red-50 p-2 text-center text-xs text-red-600">{approveError}</p>
-      )}
-
-      <div className="mb-3 flex gap-2">
-        <div className="flex-1">
-          <label className="mb-1 block text-xs font-medium text-gray-600">Fee Amount (₹)</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={feeAmount}
-            onChange={(e) => setFeeAmount(e.target.value.replace(/\D/g, ""))}
-            className="w-full rounded-lg border bg-white p-2.5 text-sm text-gray-900 outline-none"
-            style={{ borderColor: "#E5E1D8" }}
-          />
-        </div>
-        <div className="w-32 shrink-0">
-          <label className="mb-1 block text-xs font-medium text-gray-600">Fee Cycle</label>
-          <select
-            value={feeType}
-            onChange={(e) => setFeeType(e.target.value)}
-            className="w-full rounded-lg border bg-white p-2.5 text-sm text-gray-900 outline-none"
-            style={{ borderColor: "#E5E1D8" }}
-          >
-            {feeTypeOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <label className="mb-1 block text-xs font-medium text-gray-600">Admission Date</label>
-      <input
-        type="date"
-        value={admissionDate}
-        onChange={(e) => setAdmissionDate(e.target.value)}
-        className="mb-4 w-full rounded-lg border bg-white p-2.5 text-sm text-gray-900 outline-none"
-        style={{ borderColor: "#E5E1D8" }}
-      />
-
-      <button
-        onClick={handleApprove}
-        disabled={approving}
-        className="w-full rounded-lg p-2.5 text-sm font-semibold text-white disabled:opacity-60"
-        style={{ background: INK }}
-      >
-        {approving ? "Activating…" : "Activate Member"}
-      </button>
     </div>
   );
 }

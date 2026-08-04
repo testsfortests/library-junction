@@ -59,10 +59,26 @@ export async function PUT(request, { params }) {
     if (updates.admissionDate) updates.admissionDate = new Date(updates.admissionDate);
     if (updates.dueDate) updates.dueDate = new Date(updates.dueDate);
 
+    // paidAmount isn't a stored field on the member — it's a one-time payment
+    // to record when confirming/updating (e.g. from ApprovePanel), so it's
+    // handled separately with $push instead of $set.
+    const paidAmount = body.paidAmount !== undefined ? Number(body.paidAmount) : null;
+    const updateOp = { $set: updates };
+
+    if (paidAmount !== null && !Number.isNaN(paidAmount) && paidAmount > 0) {
+      updateOp.$push = {
+        payments: {
+          amount: paidAmount,
+          date: new Date(),
+          ...(updates.paymentMethod ? { method: updates.paymentMethod } : {}),
+        },
+      };
+    }
+
     await connectDB();
     const member = await Member.findOneAndUpdate(
       { _id: id, adminId: admin.adminId },
-      { $set: updates },
+      updateOp,
       { returnDocument: "after" }
     );
 

@@ -242,7 +242,7 @@ export default function DashboardHome() {
 
       {/* Member status counts */}
       <div className="mb-4 grid grid-cols-4 gap-2 sm:gap-4">
-        <StatCard label="Total Members" value={stats.total} />
+        <StatCard label="Total" value={stats.total} />
         <StatCard label="Active" value={stats.activeCount} color={statusStyles.active.text} />
         <StatCard label="Pending" value={stats.pendingCount} color={statusStyles.pending.text} />
         <StatCard label="Review" value={stats.reviewCount} color={statusStyles.review.text} />
@@ -257,10 +257,10 @@ export default function DashboardHome() {
 
       {/* Overdue + Due Soon */}
       <div className="rounded-xl bg-white p-5 shadow-sm">
-        <h2 className="text-base font-semibold" style={{ color: INK }}>
-          Overdue + Due Soon
-        </h2>
-        <p className="mb-4 text-xs text-gray-400">Pending members needing follow-up</p>
+        {/* <h2 className="text-base font-semibold" style={{ color: INK }}>
+          Overdue & Due Soon
+        </h2> */}
+        {/* <p className="mb-4 text-xs text-gray-400">Pending members needing follow-up</p> */}
 
         {/* Overdue */}
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "#DC2626" }}>
