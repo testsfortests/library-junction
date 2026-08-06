@@ -4,7 +4,9 @@ import { connectDB } from "@/lib/mongodb";
 import Admin from "@/models/Admin";
 import PendingEnrollment from "@/models/PendingEnrollment";
 import Member from "@/models/Member";
+import Notification from "@/models/Notification";
 import { generateMemberId } from "@/lib/memberId";
+import { sendPushToAdmin } from "@/lib/push-server";
 
 export async function POST(request, { params }) {
   try {
@@ -53,6 +55,27 @@ export async function POST(request, { params }) {
     });
 
     await pending.deleteOne();
+
+    const notifMessage = `${member.fullName} self-enrolled via QR and needs review.`;
+
+    // In-app notification (bell dropdown)
+    try {
+      await Notification.create({
+        adminId: admin._id,
+        type: "enrollment_review",
+        refId: member._id,
+        message: notifMessage,
+      });
+    } catch (notifyErr) {
+      console.error("Failed to create enrollment notification:", notifyErr);
+    }
+
+    // Browser/OS push notification — never blocks the enrollment response
+    sendPushToAdmin(admin._id, {
+      title: "New enrollment request",
+      body: notifMessage,
+      url: `/dashboard/members/${member._id}`,
+    }).catch((err) => console.error("Push notification failed:", err));
 
     return NextResponse.json({
       success: true,

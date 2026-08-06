@@ -250,18 +250,6 @@ export default function ApprovePanel({ member, onApproved }) {
         </div>
       </div>
 
-      {/* Status preview */}
-      {/* <div className="mb-4 flex items-center justify-between rounded-lg bg-white px-3 py-2.5" style={{ border: "1px solid #E5E1D8" }}>
-        <span className="text-xs font-medium text-gray-500">Status on confirm</span>
-        <span
-          className="flex items-center gap-1 text-xs font-semibold capitalize"
-          style={{ color: computedStatus === "active" ? "#1E8E3E" : "#B7791F" }}
-        >
-          <span>●</span>
-          {computedStatus}
-        </span>
-      </div> */}
-
       <button
         onClick={handleApprove}
         disabled={approving}
