@@ -27,8 +27,9 @@ export async function subscribeToPush() {
     throw new Error("Push notifications aren't supported in this browser.");
   }
 
-  const registration = await navigator.serviceWorker.register("/sw.js");
-  await navigator.serviceWorker.ready;
+  // Service worker is already registered globally by ServiceWorkerRegister
+  // on app load — just wait for it to be ready rather than re-registering.
+  const registration = await navigator.serviceWorker.ready;
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {

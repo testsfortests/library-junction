@@ -1,20 +1,32 @@
 import "./globals.css";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata = {
   title: "Member Mate",
   description: "Member Mate App",
   manifest: "/manifest.json",
-  themeColor: "#00ff00",
   icons: {
     icon: "/favicon.ico",
     apple: "/icons-180.png",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Member Mate",
+  },
+};
+
+export const viewport = {
+  themeColor: "#00ff00",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }

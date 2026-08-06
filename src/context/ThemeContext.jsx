@@ -47,6 +47,33 @@ export function ThemeProvider({ children }) {
 
   const colors = themes[mode];
 
+  // Keep the browser/PWA status bar color (and Android address bar color) in
+  // sync with the in-app theme toggle. This is what removes the mismatched
+  // colored strip at the top on mobile — it always matches header.surface.
+  useEffect(() => {
+    if (!ready) return;
+
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", colors.surface);
+
+    // iOS only accepts one of three fixed values here (not a custom color).
+    // "black-translucent" lets dark mode's content show through the status
+    // bar area instead of leaving a mismatched white/black band; "default"
+    // gives light mode a normal white bar with dark text/icons.
+    let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (!appleMeta) {
+      appleMeta = document.createElement("meta");
+      appleMeta.setAttribute("name", "apple-mobile-web-app-status-bar-style");
+      document.head.appendChild(appleMeta);
+    }
+    appleMeta.setAttribute("content", mode === "dark" ? "black-translucent" : "default");
+  }, [mode, colors.surface, ready]);
+
   // avoid a flash of the wrong theme before localStorage is read
   if (!ready) return null;
 
