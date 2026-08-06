@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck, Info, BellRing } from "lucide-react";
@@ -29,26 +29,10 @@ function formatShortDate(d) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function formatNotifTime(dateStr) {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export default function Header() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [admin, setAdmin] = useState(null);
-
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notifLoading, setNotifLoading] = useState(true);
-  const notifRef = useRef(null);
 
   const [pushState, setPushState] = useState("unsupported"); // "unsupported" | "default" | "granted" | "denied"
   const [pushBusy, setPushBusy] = useState(false);
@@ -99,44 +83,29 @@ export default function Header() {
     }
   };
 
-  // Fetch on mount, then poll every 30s for new enrollment notifications
+  // Poll just the unread count for the bell badge — the full list lives on
+  // the dedicated /dashboard/notifications page now.
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchNotifications() {
+    async function fetchUnreadCount() {
       try {
         const res = await fetch("/api/admin/notifications");
         const data = await res.json();
-        if (!cancelled && res.ok) {
-          setNotifications(data.notifications || []);
-          setUnreadCount(data.unreadCount || 0);
-        }
+        if (!cancelled && res.ok) setUnreadCount(data.unreadCount || 0);
       } catch {
         // fail silently — bell just shows nothing new
-      } finally {
-        if (!cancelled) setNotifLoading(false);
       }
     }
 
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   }, []);
-
-  // Close the notification dropdown when clicking outside it
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
-        setNotifOpen(false);
-      }
-    }
-    if (notifOpen) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [notifOpen]);
 
   const displayName = admin?.fullName || "Admin";
   const isOwner = admin?.role === "owner";
@@ -145,26 +114,6 @@ export default function Header() {
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" });
     router.replace("/login");
-  };
-
-  const handleNotificationClick = (n) => {
-    setNotifOpen(false);
-    router.push(`/dashboard/members/${n.member._id}`);
-  };
-
-  const handleBellClick = () => {
-    const opening = !notifOpen;
-    setNotifOpen(opening);
-
-    // Opening the dropdown = "seen". Clear the badge but keep every item
-    // in the list — they only leave the list once actually confirmed/cancelled.
-    if (opening && unreadCount > 0) {
-      setUnreadCount(0);
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      fetch("/api/admin/notifications/mark-read", { method: "PATCH" }).catch(() => {
-        // best-effort; next poll will resync if this fails
-      });
-    }
   };
 
   return (
@@ -192,74 +141,22 @@ export default function Header() {
           </span>
         </div>
 
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={handleBellClick}
-            className="relative rounded-lg p-2"
-            style={{ color: colors.text }}
-            aria-label="Notifications"
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && (
-              <span
-                className="absolute right-0 top-0 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"
-                style={{ background: colors.primary }}
-              >
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </button>
-
-          {notifOpen && (
-            <div
-              className="absolute right-0 top-full z-50 mt-2 max-h-96 w-72 overflow-y-auto rounded-xl border shadow-lg sm:w-80"
-              style={{ background: colors.surface, borderColor: colors.border }}
+        <button
+          onClick={() => router.push("/dashboard/notifications")}
+          className="relative rounded-lg p-2"
+          style={{ color: colors.text }}
+          aria-label="Notifications"
+        >
+          <Bell size={20} />
+          {unreadCount > 0 && (
+            <span
+              className="absolute right-0 top-0 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"
+              style={{ background: colors.primary }}
             >
-              <div
-                className="sticky top-0 border-b px-3 py-2 text-xs font-semibold uppercase tracking-wide"
-                style={{ background: colors.surface, borderColor: colors.border, color: colors.textMuted }}
-              >
-                Enrollment Requests
-              </div>
-
-              {notifLoading ? (
-                <p className="p-4 text-center text-xs" style={{ color: colors.textMuted }}>
-                  Loading…
-                </p>
-              ) : notifications.length === 0 ? (
-                <p className="p-4 text-center text-xs" style={{ color: colors.textMuted }}>
-                  No pending enrollments to review.
-                </p>
-              ) : (
-                notifications.map((n) => (
-                  <button
-                    key={n._id}
-                    onClick={() => handleNotificationClick(n)}
-                    className="flex w-full items-start gap-2 border-b p-3 text-left text-xs transition last:border-b-0"
-                    style={{
-                      borderColor: colors.border,
-                      color: colors.text,
-                      background: n.isRead ? "transparent" : `${colors.primary}0D`,
-                    }}
-                  >
-                    {!n.isRead && (
-                      <span
-                        className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ background: colors.primary }}
-                      />
-                    )}
-                    <span className={n.isRead ? "w-full" : "w-full"}>
-                      <p className="font-medium">{n.message}</p>
-                      <p className="mt-0.5" style={{ color: colors.textMuted }}>
-                        {formatNotifTime(n.createdAt)}
-                      </p>
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
           )}
-        </div>
+        </button>
       </header>
 
       {/* Overlay */}

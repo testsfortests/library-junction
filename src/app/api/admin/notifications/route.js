@@ -13,35 +13,49 @@ export async function GET(request) {
 
     await connectDB();
 
-    const notifications = await Notification.find({ adminId: admin.adminId, type: "enrollment_review" })
+    const notifications = await Notification.find({ adminId: admin.adminId })
       .sort({ createdAt: -1 })
-      .limit(30)
+      .limit(50)
       .populate("refId", "fullName memberId status")
       .lean();
 
-    // "Pending" = the referenced member still exists and is still awaiting review.
-    // This makes the list self-cleaning regardless of how confirm/cancel is implemented.
+    // For enrollment_review specifically, "pending" means the referenced
+    // member still exists and is still awaiting review — this makes that
+    // type self-cleaning regardless of how confirm/cancel is implemented.
+    // Other notification types (no such lifecycle yet) always pass through.
     const staleIds = [];
-    const pending = [];
+    const result = [];
     let unreadCount = 0;
 
     for (const n of notifications) {
-      const member = n.refId;
-      if (!member || member.status !== "review") {
-        staleIds.push(n._id);
-        continue;
+      if (n.type === "enrollment_review" && n.refModel === "Member") {
+        const member = n.refId;
+        if (!member || member.status !== "review") {
+          staleIds.push(n._id);
+          continue;
+        }
+        if (!n.isRead) unreadCount += 1;
+        result.push({
+          _id: n._id,
+          type: n.type,
+          message: n.message,
+          isRead: n.isRead,
+          createdAt: n.createdAt,
+          member: { _id: member._id, fullName: member.fullName, memberId: member.memberId },
+        });
+      } else {
+        if (!n.isRead) unreadCount += 1;
+        result.push({
+          _id: n._id,
+          type: n.type,
+          message: n.message,
+          isRead: n.isRead,
+          createdAt: n.createdAt,
+          member: n.refId || null,
+        });
       }
-      if (!n.isRead) unreadCount += 1;
-      pending.push({
-        _id: n._id,
-        message: n.message,
-        isRead: n.isRead,
-        createdAt: n.createdAt,
-        member: { _id: member._id, fullName: member.fullName, memberId: member.memberId },
-      });
     }
 
-    // Best-effort cleanup of resolved notifications; don't block the response on it.
     if (staleIds.length) {
       Notification.deleteMany({ _id: { $in: staleIds } }).catch((err) =>
         console.error("Failed to clean up stale notifications:", err)
@@ -49,8 +63,8 @@ export async function GET(request) {
     }
 
     return NextResponse.json({
-      notifications: pending, // full list — stays until member is confirmed/cancelled
-      unreadCount, // badge count — drops once viewed, independent of list length
+      notifications: result,
+      unreadCount,
     });
   } catch (err) {
     console.error(err);
