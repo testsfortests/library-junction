@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck, Info, BellRing, Download } from "lucide-react";
+import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck, Info, BellRing, Download, Share } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { isPushSupported, getPushPermissionState, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 
@@ -29,6 +29,18 @@ function formatShortDate(d) {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+// iOS/iPadOS Safari (incl. "request desktop site" iPads, which still report
+// MacIntel + touch points) never fires beforeinstallprompt — detect it so we
+// can show manual "Add to Home Screen" instructions instead of a dead button.
+function detectIOSSafari() {
+  if (typeof window === "undefined") return false;
+  const ua = window.navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+    (ua.includes("Macintosh") && navigator.maxTouchPoints > 1); // iPadOS 13+
+  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  return isIOS && isSafari;
+}
+
 export default function Header() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [admin, setAdmin] = useState(null);
@@ -43,6 +55,8 @@ export default function Header() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [installBusy, setInstallBusy] = useState(false);
+  const [isIOSSafari, setIsIOSSafari] = useState(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 
   const router = useRouter();
   const { mode, colors, toggleTheme } = useTheme();
@@ -69,14 +83,14 @@ export default function Header() {
     checkPushState();
   }, []);
 
-  // PWA install: capture the browser's install prompt so we can trigger it
-  // from our own button instead of relying on the browser's default UI.
+  // PWA install
   useEffect(() => {
-    // Already running as an installed app? Don't show the button.
     const standalone =
       window.matchMedia?.("(display-mode: standalone)")?.matches ||
       window.navigator.standalone === true; // iOS Safari
     if (standalone) setIsInstalled(true);
+
+    setIsIOSSafari(detectIOSSafari());
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
@@ -105,9 +119,7 @@ export default function Header() {
     try {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        setIsInstalled(true);
-      }
+      if (outcome === "accepted") setIsInstalled(true);
     } finally {
       setDeferredPrompt(null);
       setIsInstallable(false);
@@ -359,7 +371,7 @@ export default function Header() {
             </div>
           )}
 
-          {/* Install app */}
+          {/* Install app — Chrome/Edge/Android get the native prompt */}
           {isInstallable && !isInstalled && (
             <button
               type="button"
@@ -371,6 +383,25 @@ export default function Header() {
               <Download size={18} />
               {installBusy ? "Installing…" : "Install App"}
             </button>
+          )}
+
+          {/* iOS/iPadOS Safari — no beforeinstallprompt exists, so show manual steps */}
+          {isIOSSafari && !isInstalled && (
+            <button
+              type="button"
+              onClick={() => setShowIOSInstructions((v) => !v)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium"
+              style={{ color: colors.text }}
+            >
+              <Download size={18} />
+              Install App
+            </button>
+          )}
+          {showIOSInstructions && (
+            <div className="mx-3 mb-2 rounded-lg px-3 py-2.5 text-xs" style={{ background: colors.background, color: colors.textMuted }}>
+              Tap <Share size={12} className="inline-block align-text-bottom" /> Share in Safari's toolbar, then
+              choose <strong style={{ color: colors.text }}>"Add to Home Screen."</strong>
+            </div>
           )}
 
           <Link
