@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck, Info, BellRing } from "lucide-react";
+import { Menu, Bell, Building2, X, Pencil, LogOut, Moon, Sun, QrCode, ShieldCheck, Info, BellRing, Download } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { isPushSupported, getPushPermissionState, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 
@@ -38,6 +38,12 @@ export default function Header() {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState("");
 
+  // PWA install
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [installBusy, setInstallBusy] = useState(false);
+
   const router = useRouter();
   const { mode, colors, toggleTheme } = useTheme();
 
@@ -62,6 +68,52 @@ export default function Header() {
     }
     checkPushState();
   }, []);
+
+  // PWA install: capture the browser's install prompt so we can trigger it
+  // from our own button instead of relying on the browser's default UI.
+  useEffect(() => {
+    // Already running as an installed app? Don't show the button.
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      window.navigator.standalone === true; // iOS Safari
+    if (standalone) setIsInstalled(true);
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    setInstallBusy(true);
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setIsInstalled(true);
+      }
+    } finally {
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+      setInstallBusy(false);
+    }
+  };
 
   const handleTogglePush = async () => {
     setPushError("");
@@ -305,6 +357,20 @@ export default function Header() {
                 </p>
               )}
             </div>
+          )}
+
+          {/* Install app */}
+          {isInstallable && !isInstalled && (
+            <button
+              type="button"
+              onClick={handleInstall}
+              disabled={installBusy}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium disabled:opacity-60"
+              style={{ color: colors.text }}
+            >
+              <Download size={18} />
+              {installBusy ? "Installing…" : "Install App"}
+            </button>
           )}
 
           <Link
